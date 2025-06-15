@@ -1,0 +1,80 @@
+/* style.css */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+  background-color: #fff;
+  font-family: Helvetica, sans-serif;
+  color: #000;
+}
+
+.scroll-container {
+  display: flex;
+  height: 100vh;
+  overflow-x: auto;
+  scroll-behavior: smooth;
+  gap: 0;
+  white-space: nowrap;
+}
+
+.scroll-container::-webkit-scrollbar {
+  display: none;
+}
+
+.slide {
+  flex: 0 0 auto;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.slide img {
+  height: 100vh;
+  width: auto;
+  max-width: none;
+  object-fit: contain;
+}
+
+.sidebar-container {
+  position: fixed;
+  top: 1em;
+  left: 1em;
+  z-index: 200;
+}
+
+.colai-label {
+  font-size: 1.5em;
+  font-weight: bold;
+  color: #000;
+  cursor: pointer;
+  position: relative;
+}
+
+.album-menu {
+  position: absolute;
+  top: 2em;
+  left: 0;
+  background-color: rgba(255,255,255,0.8);
+  display: none;
+  flex-direction: column;
+  padding: 0.5em;
+  gap: 0.5em;
+}
+
+.sidebar-container:hover .album-menu,
+.album-menu:hover {
+  display: flex;
+}
+
+.album-item {
+  font-size: 1em;
+  font-weight: bold;
+  color: #000;
+  cursor: pointer;
+}
