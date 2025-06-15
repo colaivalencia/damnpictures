@@ -20,10 +20,6 @@ const allItems = [
     "src": "albums/ultramax01-02.jpg"
   },
   {
-    "name": "ultramax01-16",
-    "src": "albums/ultramax01-16.jpg"
-  },
-  {
     "name": "ultramax01-14",
     "src": "albums/ultramax01-14.jpg"
   },
