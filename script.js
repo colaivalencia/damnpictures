@@ -1,5 +1,5 @@
 // script.js
-const albums = ["josiah"];
+const albums = ["josiah", "untitled"];
 const imageExtensions = ["jpg", "jpeg", "png"];
 const gallery = document.getElementById("gallery");
 const menu = document.getElementById("albumMenu");
