@@ -1,7 +1,11 @@
 const allItems = [
   {
-    "name": "ultramax01-edited-18",
-    "src": "albums/ultramax01-edited-18.jpg"
+    "name": "roll02-ultramax-3",
+    "src": "albums/roll02-ultramax-3.jpg"
+  },
+  {
+    "name": "ultramax01-17",
+    "src": "albums/ultramax01-17.jpg"
   },
   {
     "name": "640t-18",
@@ -20,20 +24,56 @@ const allItems = [
     "src": "albums/640t-19.jpg"
   },
   {
-    "name": "joloupd-25",
-    "src": "albums/joloupd-25.jpg"
+    "name": "ultramax01-02",
+    "src": "albums/ultramax01-02.jpg"
   },
   {
-    "name": "ultramax01-edited-09",
-    "src": "albums/ultramax01-edited-09.jpg"
+    "name": "ultramax01-16",
+    "src": "albums/ultramax01-16.jpg"
+  },
+  {
+    "name": "ultramax01-14",
+    "src": "albums/ultramax01-14.jpg"
+  },
+  {
+    "name": "ultramax01-15",
+    "src": "albums/ultramax01-15.jpg"
+  },
+  {
+    "name": "ultramax01-01",
+    "src": "albums/ultramax01-01.jpg"
+  },
+  {
+    "name": "roll02-ultramax2-2",
+    "src": "albums/roll02-ultramax2-2.jpg"
+  },
+  {
+    "name": "roll02-ultramax-5",
+    "src": "albums/roll02-ultramax-5.jpg"
+  },
+  {
+    "name": "joloupd-25",
+    "src": "albums/joloupd-25.jpg"
   },
   {
     "name": "trauma-09",
     "src": "albums/trauma-09.jpg"
   },
   {
+    "name": "roll02-ultramax-6",
+    "src": "albums/roll02-ultramax-6.jpg"
+  },
+  {
+    "name": "ultramax01-06",
+    "src": "albums/ultramax01-06.jpg"
+  },
+  {
     "name": "640t-08",
     "src": "albums/640t-08.jpg"
+  },
+  {
+    "name": "roll02-ultramax-7",
+    "src": "albums/roll02-ultramax-7.jpg"
   },
   {
     "name": "trauma-08",
@@ -44,28 +84,12 @@ const allItems = [
     "src": "albums/kaogma-1.jpg"
   },
   {
-    "name": "joloupd-3",
-    "src": "albums/joloupd-3.jpg"
-  },
-  {
     "name": "joloupd-2",
     "src": "albums/joloupd-2.jpg"
   },
   {
-    "name": "roll02-ultramax-edited-5",
-    "src": "albums/roll02-ultramax-edited-5.jpg"
-  },
-  {
-    "name": "roll02-ultramax-edited-7",
-    "src": "albums/roll02-ultramax-edited-7.jpg"
-  },
-  {
     "name": "joloupd-1",
     "src": "albums/joloupd-1.jpg"
-  },
-  {
-    "name": "roll02-ultramax-edited-6",
-    "src": "albums/roll02-ultramax-edited-6.jpg"
   },
   {
     "name": "joloupd-5",
@@ -74,10 +98,6 @@ const allItems = [
   {
     "name": "joloupd-4",
     "src": "albums/joloupd-4.jpg"
-  },
-  {
-    "name": "roll02-ultramax-edited-3",
-    "src": "albums/roll02-ultramax-edited-3.jpg"
   },
   {
     "name": "kaogma-4",
@@ -120,16 +140,16 @@ const allItems = [
     "src": "albums/trauma-10.jpg"
   },
   {
-    "name": "ultramax01-edited-06",
-    "src": "albums/ultramax01-edited-06.jpg"
-  },
-  {
     "name": "trauma-12",
     "src": "albums/trauma-12.jpg"
   },
   {
     "name": "polyeast-1",
     "src": "albums/polyeast-1.jpg"
+  },
+  {
+    "name": "ultramax01-09",
+    "src": "albums/ultramax01-09.jpg"
   },
   {
     "name": "640t-12",
@@ -148,12 +168,8 @@ const allItems = [
     "src": "albums/trauma-07.jpg"
   },
   {
-    "name": "roll02-ultramax-edited2-2",
-    "src": "albums/roll02-ultramax-edited2-2.jpg"
-  },
-  {
-    "name": "ultramax01-edited-17",
-    "src": "albums/ultramax01-edited-17.jpg"
+    "name": "ultramax01-18",
+    "src": "albums/ultramax01-18.jpg"
   },
   {
     "name": "640t-17",
@@ -172,18 +188,6 @@ const allItems = [
     "src": "albums/640t-16.jpg"
   },
   {
-    "name": "ultramax01-edited-16",
-    "src": "albums/ultramax01-edited-16.jpg"
-  },
-  {
-    "name": "ultramax01-edited-02",
-    "src": "albums/ultramax01-edited-02.jpg"
-  },
-  {
-    "name": "ultramax01-edited-14",
-    "src": "albums/ultramax01-edited-14.jpg"
-  },
-  {
     "name": "640t-14",
     "src": "albums/640t-14.jpg"
   },
@@ -200,11 +204,7 @@ const allItems = [
     "src": "albums/640t-01.jpg"
   },
   {
-    "name": "ultramax01-edited-01",
-    "src": "albums/ultramax01-edited-01.jpg"
-  },
-  {
-    "name": "ultramax01-edited-15",
-    "src": "albums/ultramax01-edited-15.jpg"
+    "name": "tj",
+    "src": "albums/tj.jpg"
   }
 ];
