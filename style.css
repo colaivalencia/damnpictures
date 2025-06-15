@@ -1,80 +1,100 @@
-/* style.css */
-* {
-  box-sizing: border-box;
+/* Global styles */
+body {
   margin: 0;
-  padding: 0;
-}
-
-html, body {
-  height: 100%;
-  overflow: hidden;
-  background-color: #fff;
+  background: white;
   font-family: Helvetica, sans-serif;
-  color: #000;
+  overflow-x: hidden;       /* hides horizontal scrollbar */
+  overflow-y: hidden;       /* prevents vertical scroll (since we're scrolling sideways) */
 }
 
+
+/* Scrollable container */
 .scroll-container {
   display: flex;
+  flex-direction: row;
   height: 100vh;
-  overflow-x: auto;
   scroll-behavior: smooth;
-  gap: 0;
-  white-space: nowrap;
+  overflow-x: scroll;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none; /* Firefox */
 }
 
 .scroll-container::-webkit-scrollbar {
-  display: none;
+  display: none; /* Safari and Chrome */
 }
 
+
+/* Individual image slides */
 .slide {
   flex: 0 0 auto;
   height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.slide img {
-  height: 100vh;
-  width: auto;
-  max-width: none;
-  object-fit: contain;
-}
-
-.sidebar-container {
-  position: fixed;
-  top: 1em;
-  left: 1em;
-  z-index: 200;
-}
-
-.colai-label {
-  font-size: 1.5em;
-  font-weight: bold;
-  color: #000;
-  cursor: pointer;
   position: relative;
 }
 
-.album-menu {
-  position: absolute;
-  top: 2em;
+.slide img {
+  height: 100%;
+  width: auto;
+  display: block;
+  object-fit: contain;
+  object-position: center;
+}
+.sidebar-container {
+  position: fixed;
+  top: 0;
   left: 0;
-  background-color: rgba(255,255,255,0.8);
-  display: none;
-  flex-direction: column;
-  padding: 0.5em;
-  gap: 0.5em;
+  height: 100%;
+  z-index: 10;
+  pointer-events: none;
 }
 
-.sidebar-container:hover .album-menu,
-.album-menu:hover {
-  display: flex;
+.colai-label {
+  font-weight: bold;
+  font-size: 1.2rem;
+  padding: 1rem;
+  mix-blend-mode: difference;
+  color: white;
+  pointer-events: auto;
+  cursor: pointer;
+  user-select: none;
+}
+
+.album-menu {
+  display: none;
+  position: absolute;
+  top: 3rem;
+  left: 1rem;
+  padding: 0;
+  max-height: 80vh;
+  overflow-y: auto;
+  pointer-events: auto;
+  mix-blend-mode: difference;
+  color: white;
+  font-family: Helvetica, sans-serif;
 }
 
 .album-item {
-  font-size: 1em;
-  font-weight: bold;
-  color: #000;
+  font-size: 0.9rem;
+  padding: 0.25rem 0;
   cursor: pointer;
+  white-space: nowrap;
 }
+
+.album-item:hover {
+  text-decoration: underline;
+}
+
+/* Hover area triggers album menu */
+.sidebar-container:hover .album-menu {
+  display: block;
+}
+
+.album-menu::-webkit-scrollbar {
+  display: none; /* Chrome, Safari */
+}
+
+.album-menu {
+  -ms-overflow-style: none;  /* Internet Explorer 10+ */
+  scrollbar-width: none;     /* Firefox */
+}
+
