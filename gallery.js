@@ -32,6 +32,10 @@ const allItems = [
     "src": "albums/ultramax01-01.jpg"
   },
   {
+    "name": "roll02-ultramax-5",
+    "src": "albums/roll02-ultramax-5.jpg"
+  },
+  {
     "name": "joloupd-25",
     "src": "albums/joloupd-25.jpg"
   },
@@ -136,6 +140,10 @@ const allItems = [
     "src": "albums/trauma-07.jpg"
   },
   {
+    "name": "ultramax01-18",
+    "src": "albums/ultramax01-18.jpg"
+  },
+  {
     "name": "640t-17",
     "src": "albums/640t-17.jpg"
   },
@@ -166,25 +174,5 @@ const allItems = [
   {
     "name": "tj",
     "src": "albums/tj.jpg"
-  },
-  {
-    "name": "ultramax01-17",
-    "src": "albums/ultramax01-17/ultramax01-17.jpg",
-    "group": "ultramax01-17"
-  },
-  {
-    "name": "ultramax01-18",
-    "src": "albums/ultramax01-17/ultramax01-18.jpg",
-    "group": "ultramax01-17"
-  },
-  {
-    "name": "roll02-ultramax-5",
-    "src": "albums/roll02-ultramax-5/roll02-ultramax-5.jpg",
-    "group": "roll02-ultramax-5"
-  },
-  {
-    "name": "roll02-ultramax-6",
-    "src": "albums/roll02-ultramax-5/roll02-ultramax-6.jpg",
-    "group": "roll02-ultramax-5"
   }
 ];

@@ -28,6 +28,9 @@ shuffled.forEach((item, index) => {
   albumMenu.appendChild(albumItem);
 });
 
+
+
+
 function shuffleAndGroup(items) {
   const standalone = items.filter(i => !i.group);
   const groupedMap = {};
@@ -46,4 +49,32 @@ function shuffleAndGroup(items) {
   }
 
   return combined.flat();
+
+
 }
+
+
+
+const label = document.getElementById('colaiLabel');
+
+function flickerDAMN() {
+  label.textContent = 'DAMNpictures';
+
+  setTimeout(() => {
+    label.textContent = 'damnpictures';
+  }, 150); // Flicker duration
+
+  const dice = Math.random();
+  const delay = dice < 0.3
+    ? randomBetween(1000, 5000)   // 1–5 seconds
+    : randomBetween(8000, 15000); // 8–15 seconds
+
+  setTimeout(flickerDAMN, delay);
+}
+
+function randomBetween(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+flickerDAMN(); // Start flicker loop
+
