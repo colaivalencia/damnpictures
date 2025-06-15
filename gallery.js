@@ -12,10 +12,6 @@ const allItems = [
     "src": "albums/640t-18.jpg"
   },
   {
-    "name": "ciit_intramuros-08",
-    "src": "albums/ciit_intramuros-08.jpg"
-  },
-  {
     "name": "ciit_intramuros-09",
     "src": "albums/ciit_intramuros-09.jpg"
   },
@@ -44,16 +40,16 @@ const allItems = [
     "src": "albums/ultramax01-01.jpg"
   },
   {
-    "name": "roll02-ultramax2-2",
-    "src": "albums/roll02-ultramax2-2.jpg"
-  },
-  {
     "name": "roll02-ultramax-5",
     "src": "albums/roll02-ultramax-5.jpg"
   },
   {
     "name": "joloupd-25",
     "src": "albums/joloupd-25.jpg"
+  },
+  {
+    "name": "roll02-ultramax-4",
+    "src": "albums/roll02-ultramax-4.jpg"
   },
   {
     "name": "trauma-09",
@@ -76,16 +72,8 @@ const allItems = [
     "src": "albums/roll02-ultramax-7.jpg"
   },
   {
-    "name": "trauma-08",
-    "src": "albums/trauma-08.jpg"
-  },
-  {
     "name": "kaogma-1",
     "src": "albums/kaogma-1.jpg"
-  },
-  {
-    "name": "joloupd-2",
-    "src": "albums/joloupd-2.jpg"
   },
   {
     "name": "joloupd-1",
@@ -98,10 +86,6 @@ const allItems = [
   {
     "name": "joloupd-4",
     "src": "albums/joloupd-4.jpg"
-  },
-  {
-    "name": "kaogma-4",
-    "src": "albums/kaogma-4.jpg"
   },
   {
     "name": "kaogma-8",
@@ -140,10 +124,6 @@ const allItems = [
     "src": "albums/trauma-10.jpg"
   },
   {
-    "name": "trauma-12",
-    "src": "albums/trauma-12.jpg"
-  },
-  {
     "name": "polyeast-1",
     "src": "albums/polyeast-1.jpg"
   },
@@ -154,6 +134,10 @@ const allItems = [
   {
     "name": "640t-12",
     "src": "albums/640t-12.jpg"
+  },
+  {
+    "name": "640t-07",
+    "src": "albums/640t-07.jpg"
   },
   {
     "name": "640t-13",
@@ -190,10 +174,6 @@ const allItems = [
   {
     "name": "640t-14",
     "src": "albums/640t-14.jpg"
-  },
-  {
-    "name": "ciit_intramuros-10",
-    "src": "albums/ciit_intramuros-10.jpg"
   },
   {
     "name": "640t-15",
