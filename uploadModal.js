@@ -1,9 +1,9 @@
-// ===== BULK PHOTO UPLOAD SYSTEM (UP TO 72 PHOTOS) =====
+// ===== RELIABLE PHOTO UPLOAD SYSTEM (UP TO 72 PHOTOS) =====
 
-console.log('Bulk upload system loaded');
+console.log('Reliable upload system loaded');
 
 document.addEventListener('DOMContentLoaded', function() {
-  console.log('DOM ready, initializing bulk upload system');
+  console.log('DOM ready, initializing reliable upload system');
   
   const photoInput = document.getElementById('photoUpload');
   const uploadBtn = document.getElementById('uploadBtn');
@@ -19,7 +19,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
   let isUploading = false;
   const MAX_FILES = 72;
-  const BATCH_SIZE = 6; // Upload 6 files concurrently for speed
 
   // ===== FILE SELECTION WITH LIMIT =====
   photoInput.addEventListener('change', function() {
@@ -29,7 +28,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     if (files.length > MAX_FILES) {
       alert(`You can upload a maximum of ${MAX_FILES} photos at once. Please select fewer files.`);
-      photoInput.value = ''; // Clear selection
+      photoInput.value = '';
       uploadBtn.disabled = true;
       uploadBtn.textContent = 'Select Photos';
       return;
@@ -40,10 +39,6 @@ document.addEventListener('DOMContentLoaded', function() {
       uploadBtn.disabled = false;
       uploadBtn.textContent = `Upload ${files.length} photo${files.length > 1 ? 's' : ''}`;
       uploadBtn.style.background = 'linear-gradient(45deg, #667eea, #764ba2)';
-      
-      // Show file count and estimated time
-      const estimatedTime = Math.ceil(files.length / BATCH_SIZE) * 3; // Rough estimate
-      console.log(`Estimated upload time: ~${estimatedTime} seconds`);
     } else {
       console.log('Disabling upload button');
       uploadBtn.disabled = true;
@@ -51,7 +46,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   });
 
-  // ===== DRAG & DROP WITH FILE LIMIT =====
+  // ===== DRAG & DROP =====
   uploadSection.addEventListener('click', function(e) {
     if (e.target === uploadSection || e.target.classList.contains('upload-text') || e.target.classList.contains('upload-icon') || e.target.classList.contains('upload-subtext')) {
       photoInput.click();
@@ -87,9 +82,9 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   });
 
-  // ===== BULK UPLOAD SYSTEM WITH BATCHING =====
+  // ===== SEQUENTIAL UPLOAD SYSTEM (NO DUPLICATES) =====
   uploadBtn.addEventListener('click', async function() {
-    console.log('Bulk upload started!');
+    console.log('Sequential upload started!');
     
     const files = Array.from(photoInput.files);
     if (!files.length) {
@@ -97,7 +92,7 @@ document.addEventListener('DOMContentLoaded', function() {
       return;
     }
 
-    console.log(`Starting bulk upload of ${files.length} files`);
+    console.log(`Starting sequential upload of ${files.length} files`);
 
     // Check if user is logged in
     if (typeof getCurrentUserProfile !== 'function') {
@@ -126,93 +121,120 @@ document.addEventListener('DOMContentLoaded', function() {
     const startTime = Date.now();
     let successCount = 0;
     let failCount = 0;
-    let processedCount = 0;
 
     try {
-      console.log(`Processing ${files.length} files in batches of ${BATCH_SIZE}`);
+      console.log(`Processing ${files.length} files sequentially`);
 
       // Check if supabaseHelpers exists
       if (typeof supabaseHelpers === 'undefined') {
         throw new Error('supabaseHelpers not found');
       }
 
-      // Filter and validate files first
-      const validFiles = [];
-      for (const file of files) {
-        if (validateFile(file)) {
-          validFiles.push(file);
-        } else {
-          failCount++;
-        }
+      // Get existing photos to check for duplicates
+      console.log('Checking for existing photos...');
+      const { data: existingPhotos, error: existingError } = await supabase
+        .from('photos')
+        .select('original_name, filename')
+        .eq('user_id', userProfile.id);
+
+      if (existingError) {
+        console.error('Error fetching existing photos:', existingError);
       }
 
-      console.log(`${validFiles.length} valid files, ${failCount} invalid files`);
-
-      // Process files in batches for better performance
-      for (let i = 0; i < validFiles.length; i += BATCH_SIZE) {
-        const batch = validFiles.slice(i, i + BATCH_SIZE);
-        console.log(`\n--- Processing batch ${Math.floor(i/BATCH_SIZE) + 1} (${batch.length} files) ---`);
-
-        // Process batch concurrently
-        const batchPromises = batch.map(async (file, batchIndex) => {
-          const globalIndex = i + batchIndex;
-          try {
-            console.log(`Uploading ${globalIndex + 1}/${validFiles.length}: ${file.name}`);
-
-            // Upload file to storage
-            const uploadResult = await supabaseHelpers.uploadPhoto(file, userProfile.username);
-            if (uploadResult.error) {
-              throw new Error(`Storage upload failed: ${uploadResult.error.message}`);
-            }
-
-            // Save metadata to database
-            const photoData = {
-              username: userProfile.username,
-              filename: uploadResult.data.path.split('/').pop(),
-              original_name: file.name,
-              file_path: uploadResult.data.path,
-              file_size: file.size
-            };
-
-            const metadataResult = await supabaseHelpers.savePhotoMetadata(photoData, userProfile);
-            if (metadataResult.error) {
-              // Clean up orphaned file
-              await supabase.storage.from('photos').remove([uploadResult.data.path]);
-              throw new Error(`Metadata save failed: ${metadataResult.error.message}`);
-            }
-
-            console.log(`✅ Success: ${file.name}`);
-            return { success: true, file: file.name };
-
-          } catch (error) {
-            console.error(`❌ Failed: ${file.name} - ${error.message}`);
-            return { success: false, file: file.name, error: error.message };
-          }
+      const existingNames = new Set();
+      if (existingPhotos) {
+        existingPhotos.forEach(photo => {
+          existingNames.add(photo.original_name);
+          existingNames.add(photo.filename);
         });
+      }
 
-        // Wait for batch to complete
-        const batchResults = await Promise.all(batchPromises);
-        
-        // Update counters
-        batchResults.forEach(result => {
-          if (result.success) {
-            successCount++;
-          } else {
-            failCount++;
-          }
-          processedCount++;
-        });
+      console.log(`Found ${existingNames.size} existing photo names`);
+
+      // Filter and validate files first
+      const validFiles = [];
+      const duplicateFiles = [];
+      
+      for (const file of files) {
+        if (!validateFile(file)) {
+          failCount++;
+          continue;
+        }
+
+        // Check for duplicates
+        if (existingNames.has(file.name)) {
+          console.log(`⚠️ Duplicate detected: ${file.name}`);
+          duplicateFiles.push(file.name);
+          failCount++;
+          continue;
+        }
+
+        validFiles.push(file);
+      }
+
+      // Show duplicate warning if any found
+      if (duplicateFiles.length > 0) {
+        const duplicateList = duplicateFiles.slice(0, 5).join(', ');
+        const moreText = duplicateFiles.length > 5 ? ` and ${duplicateFiles.length - 5} more` : '';
+        alert(`⚠️ Skipping ${duplicateFiles.length} duplicate photo${duplicateFiles.length > 1 ? 's' : ''}:\n${duplicateList}${moreText}\n\nUploading remaining photos...`);
+      }
+
+      console.log(`${validFiles.length} valid files, ${failCount} invalid/duplicate files`);
+
+      // Process files ONE BY ONE to avoid duplicates
+      for (let i = 0; i < validFiles.length; i++) {
+        const file = validFiles[i];
+        console.log(`\n--- Uploading file ${i + 1}/${validFiles.length}: ${file.name} ---`);
 
         // Update progress
-        const progressPercent = (processedCount / validFiles.length) * 100;
+        const progressPercent = (i / validFiles.length) * 100;
         uploadBar.style.width = `${progressPercent}%`;
-        uploadBtn.textContent = `Uploaded ${processedCount}/${validFiles.length}`;
+        uploadBtn.textContent = `Uploading ${i + 1}/${validFiles.length}: ${file.name.substring(0, 20)}...`;
 
-        console.log(`Batch complete. Progress: ${processedCount}/${validFiles.length}`);
+        try {
+          // Upload file to storage
+          console.log(`Uploading ${file.name} to storage...`);
+          const uploadResult = await supabaseHelpers.uploadPhoto(file, userProfile.username);
+          
+          if (uploadResult.error) {
+            throw new Error(`Storage upload failed: ${uploadResult.error.message}`);
+          }
 
-        // Small delay between batches to prevent overwhelming the server
-        if (i + BATCH_SIZE < validFiles.length) {
-          await new Promise(resolve => setTimeout(resolve, 200));
+          console.log(`Storage upload successful for ${file.name}`);
+
+          // Save metadata to database
+          const photoData = {
+            username: userProfile.username,
+            filename: uploadResult.data.path.split('/').pop(),
+            original_name: file.name,
+            file_path: uploadResult.data.path,
+            file_size: file.size
+          };
+
+          console.log(`Saving metadata for ${file.name}:`, photoData);
+          const metadataResult = await supabaseHelpers.savePhotoMetadata(photoData, userProfile);
+          
+          if (metadataResult.error) {
+            console.error(`Metadata save failed for ${file.name}:`, metadataResult.error);
+            // Clean up orphaned file
+            await supabase.storage.from('photos').remove([uploadResult.data.path]);
+            throw new Error(`Metadata save failed: ${metadataResult.error.message}`);
+          }
+
+          console.log(`✅ Successfully uploaded: ${file.name}`);
+          successCount++;
+
+          // Add to existing names to prevent duplicates in this session
+          existingNames.add(file.name);
+
+        } catch (error) {
+          console.error(`❌ Failed to upload ${file.name}:`, error.message);
+          failCount++;
+        }
+
+        // Small delay between uploads to prevent overwhelming the server
+        if (i < validFiles.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 100));
         }
       }
 
@@ -226,9 +248,16 @@ document.addEventListener('DOMContentLoaded', function() {
         message += `✅ Successfully uploaded: ${successCount} photos\n`;
       }
       if (failCount > 0) {
-        message += `❌ Failed uploads: ${failCount} photos\n`;
+        const duplicateCount = duplicateFiles.length;
+        const otherFailures = failCount - duplicateCount;
+        if (duplicateCount > 0) {
+          message += `⚠️ Skipped duplicates: ${duplicateCount} photos\n`;
+        }
+        if (otherFailures > 0) {
+          message += `❌ Failed uploads: ${otherFailures} photos\n`;
+        }
       }
-      message += `\nTotal processed: ${processedCount} photos`;
+      message += `\nTotal processed: ${successCount + failCount} photos`;
       
       alert(message);
       
@@ -239,7 +268,7 @@ document.addEventListener('DOMContentLoaded', function() {
       }
 
     } catch (error) {
-      console.error('Bulk upload error:', error);
+      console.error('Upload process error:', error);
       alert('Upload failed: ' + error.message);
     } finally {
       // Reset UI
@@ -258,7 +287,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   });
 
-  // ===== ENHANCED FILE VALIDATION =====
+  // ===== FILE VALIDATION =====
   function validateFile(file) {
     // Check file type
     const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
@@ -283,7 +312,7 @@ document.addEventListener('DOMContentLoaded', function() {
     return true;
   }
 
-  // ===== LOAD USER PHOTOS (OPTIMIZED FOR LARGE GALLERIES) =====
+  // ===== LOAD USER PHOTOS =====
   window.loadUserPhotos = async function() {
     console.log('Loading user photos...');
     
@@ -319,7 +348,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   };
 
-  // ===== OPTIMIZED PHOTO DISPLAY =====
+  // ===== DISPLAY PHOTOS =====
   function displayUserPhotos(photos) {
     if (!photos.length) {
       photoList.innerHTML = `
@@ -364,7 +393,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
-  // ===== LOAD PHOTOS WHEN UPLOAD MODAL OPENS =====
+  // ===== LOAD PHOTOS WHEN MODAL OPENS =====
   const uploadModal = document.getElementById('uploadModal');
   if (uploadModal) {
     const observer = new MutationObserver((mutations) => {
@@ -380,7 +409,7 @@ document.addEventListener('DOMContentLoaded', function() {
     observer.observe(uploadModal, { attributes: true });
   }
 
-  console.log(`Bulk upload system ready - supports up to ${MAX_FILES} photos`);
+  console.log(`Reliable upload system ready - supports up to ${MAX_FILES} photos`);
 });
 
 // ===== DELETE PHOTO =====
