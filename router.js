@@ -3,7 +3,6 @@ class DamnPicturesRouter {
   constructor() {
     this.currentUser = null
     this.isRedirecting = false
-    this.lastVisitTime = null
     this.init()
   }
 
@@ -14,37 +13,66 @@ class DamnPicturesRouter {
     // Handle browser back/forward
     window.addEventListener('popstate', () => this.handleRoute())
     
-    // Set up refresh detection for random redirects
+    // Set up refresh detection ONLY for user pages
     this.setupRefreshDetection()
   }
 
   setupRefreshDetection() {
-    // Store timestamp when page loads
-    const now = Date.now()
-    const lastVisit = localStorage.getItem('damn_last_visit')
+    // Only detect refresh if we're on a user page
     const currentPath = window.location.pathname
-    const lastPath = localStorage.getItem('damn_last_path')
+    if (!currentPath.startsWith('/u/')) {
+      return // Don't set up refresh detection for non-user pages
+    }
+
+    // Check if this is a page refresh (not a navigation)
+    const navigationEntries = performance.getEntriesByType('navigation')
+    if (navigationEntries.length > 0) {
+      const navEntry = navigationEntries[0]
+      
+      // If it's a reload/refresh, redirect to random user
+      if (navEntry.type === 'reload') {
+        console.log('Page refresh detected, redirecting to random user')
+        // Small delay to ensure page is loaded
+        setTimeout(() => {
+          this.redirectToRandomUser()
+        }, 100)
+        return
+      }
+    }
+
+    // Fallback: check if user manually refreshed using timestamp method
+    const now = Date.now()
+    const lastVisit = sessionStorage.getItem('damn_last_visit')
+    const lastPath = sessionStorage.getItem('damn_last_path')
     
-    // If it's been less than 5 seconds since last visit on the same path,
-    // consider it a refresh and redirect to random user
     if (lastVisit && lastPath === currentPath) {
       const timeDiff = now - parseInt(lastVisit)
-      if (timeDiff < 5000) { // 5 seconds
-        console.log('Refresh detected, redirecting to random user')
-        this.redirectToRandomUser()
+      // If less than 2 seconds and same path, consider it a refresh
+      if (timeDiff < 2000) {
+        console.log('Quick revisit detected, redirecting to random user')
+        setTimeout(() => {
+          this.redirectToRandomUser()
+        }, 100)
         return
       }
     }
     
-    // Store current visit
-    localStorage.setItem('damn_last_visit', now.toString())
-    localStorage.setItem('damn_last_path', currentPath)
+    // Store current visit (but clear any redirect flags)
+    sessionStorage.setItem('damn_last_visit', now.toString())
+    sessionStorage.setItem('damn_last_path', currentPath)
   }
 
   async handleRoute() {
     const path = window.location.pathname
     
     console.log('Current path:', path)
+
+    // Check if we're in a redirect loop prevention mode
+    const isRedirectPrevention = sessionStorage.getItem('damn_preventing_loop')
+    if (isRedirectPrevention) {
+      console.log('Preventing redirect loop, clearing flag')
+      sessionStorage.removeItem('damn_preventing_loop')
+    }
 
     // Root domain - redirect to random user
     if (path === '/' || path === '') {
@@ -99,9 +127,12 @@ class DamnPicturesRouter {
       
       console.log('Redirecting to:', targetUrl)
       
-      // Update localStorage to prevent immediate re-redirect
-      localStorage.setItem('damn_last_visit', Date.now().toString())
-      localStorage.setItem('damn_last_path', targetUrl)
+      // Set flag to prevent immediate redirect loop
+      sessionStorage.setItem('damn_preventing_loop', 'true')
+      
+      // Clear the refresh detection data
+      sessionStorage.removeItem('damn_last_visit')
+      sessionStorage.removeItem('damn_last_path')
       
       // Navigate to new user
       window.location.href = targetUrl
