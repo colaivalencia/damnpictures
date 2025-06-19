@@ -1,0 +1,6 @@
+# Netlify redirects for SPA routing
+# Handle user profiles
+/u/* /index.html 200
+
+# Handle all other routes
+/* /index.html 200

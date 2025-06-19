@@ -4,19 +4,136 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>damnpictures</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
+
+  <!-- Sidebar Label -->
   <div class="sidebar-container">
     <div class="colai-label" id="colaiLabel">damnpictures</div>
-    <div class="album-menu" id="albumMenu"></div>
   </div>
 
+  <!-- Main Gallery -->
   <div class="scroll-container" id="gallery">
-    <!-- JS will populate this -->
+    <!-- Slides will be injected by router.js -->
   </div>
 
-  <script src="gallery.js"></script> <!-- MUST come first -->
+  <!-- Login Modal -->
+  <div id="loginModal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 class="modal-title">damnpictures</h2>
+        <button class="close-btn" id="closeModal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form class="modal-form" id="loginForm" onsubmit="event.preventDefault();">
+          <div class="form-group">
+            <label for="loginEmail">email:</label>
+            <input type="email" id="loginEmail" required />
+          </div>
+          <div class="form-group">
+            <label for="loginPassword">password:</label>
+            <input type="password" id="loginPassword" required />
+          </div>
+          <button type="submit" class="primary-btn" id="loginButton">login</button>
+          <div class="signup-link" id="signupLink">signup</div>
+          <div class="divider">or</div>
+          <div class="third-party-buttons">
+            <button type="button" class="third-party google">Continue with Google</button>
+            <button type="button" class="third-party facebook">Continue with Facebook</button>
+            <button type="button" class="third-party apple">Continue with Apple</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Signup Modal -->
+  <div id="signupModal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 class="modal-title">create account</h2>
+        <button class="close-btn" id="closeSignupModal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form class="modal-form" id="signupForm" onsubmit="event.preventDefault();">
+          <div class="form-group">
+            <label for="signupEmail">email:</label>
+            <input type="email" id="signupEmail" required />
+          </div>
+          <div class="form-group">
+            <label for="signupUsername">username:</label>
+            <input type="text" id="signupUsername" required />
+          </div>
+          <div class="form-group">
+            <label for="signupPassword">password:</label>
+            <input type="password" id="signupPassword" required />
+          </div>
+          <button type="submit" class="primary-btn">sign up</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Upload / Manage Modal -->
+  <div id="uploadModal" class="modal hidden">
+    <div class="modal-content">
+      <!-- Header -->
+      <div class="modal-header">
+        <h2 class="modal-title">manage photos</h2>
+        <div style="display: flex; align-items: center; gap: 16px;">
+          <div class="user-info">
+            <div class="user-avatar" id="userAvatar">U</div>
+            <div>
+              <div id="loggedInUsername" style="color: #fff; font-size: 14px; font-weight: 500;">username</div>
+              <div style="font-size: 12px; color: #999;">photographer</div>
+            </div>
+            <button class="logout-btn" id="logoutButtonInline">log out</button>
+          </div>
+          <button class="close-btn" id="closeUploadModal">&times;</button>
+        </div>
+      </div>
+
+      <!-- Body -->
+      <div class="modal-body">
+        <!-- Upload Section (Replace this section in your index.html) -->
+<div class="upload-section" id="uploadSection">
+  <!-- Dropzone area -->
+  <div class="upload-dropzone" id="uploadDropzone">
+    <div class="upload-icon">📸</div>
+    <div class="upload-text">Drop your photos here or click to browse</div>
+    <div class="upload-subtext">Supports JPG, PNG, GIF up to 10MB</div>
+    <input type="file" id="photoUpload" class="file-input" accept="image/*" multiple />
+  </div>
+  
+  <!-- Upload button - separate from dropzone -->
+  <button class="upload-btn" id="uploadBtn" disabled>Select Photos</button>
+  
+  <!-- Progress bar -->
+  <div class="upload-progress" id="uploadProgress">
+    <div class="upload-progress-bar" id="uploadProgressBar"></div>
+  </div>
+</div>
+
+        <!-- Photo Management -->
+        <div class="photos-section">
+          <h3>Your Photos</h3>
+          <div class="photos-grid" id="photoList">
+            <div class="empty-state">
+              <div class="empty-state-icon">📷</div>
+              <div>No photos uploaded yet</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase.js"></script>
+  <script src="router.js"></script>
   <script src="script.js"></script>
+  <script src="uploadModal.js"></script>
 </body>
 </html>
