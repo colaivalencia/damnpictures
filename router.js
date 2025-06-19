@@ -7,72 +7,54 @@ class DamnPicturesRouter {
   }
 
   init() {
+    // Simple refresh detection: if we have a special flag, do random redirect
+    const shouldRedirect = new URLSearchParams(window.location.search).get('r')
+    
+    if (shouldRedirect === '1') {
+      // Remove the flag from URL and redirect to random user
+      const url = new URL(window.location)
+      url.searchParams.delete('r')
+      window.history.replaceState({}, '', url.pathname)
+      this.redirectToRandomUser()
+      return
+    }
+
     // Handle initial page load
     window.addEventListener('load', () => this.handleRoute())
     
     // Handle browser back/forward
     window.addEventListener('popstate', () => this.handleRoute())
     
-    // Set up refresh detection ONLY for user pages
-    this.setupRefreshDetection()
+    // Override refresh behavior only on user pages
+    this.setupRefreshOverride()
   }
 
-  setupRefreshDetection() {
-    // Only detect refresh if we're on a user page
-    const currentPath = window.location.pathname
-    if (!currentPath.startsWith('/u/')) {
-      return // Don't set up refresh detection for non-user pages
-    }
-
-    // Check if this is a page refresh (not a navigation)
-    const navigationEntries = performance.getEntriesByType('navigation')
-    if (navigationEntries.length > 0) {
-      const navEntry = navigationEntries[0]
+  setupRefreshOverride() {
+    // Intercept F5, Ctrl+R, and Cmd+R
+    document.addEventListener('keydown', (e) => {
+      // Check if we're on a user page
+      if (!window.location.pathname.startsWith('/u/')) return
       
-      // If it's a reload/refresh, redirect to random user
-      if (navEntry.type === 'reload') {
-        console.log('Page refresh detected, redirecting to random user')
-        // Small delay to ensure page is loaded
-        setTimeout(() => {
-          this.redirectToRandomUser()
-        }, 100)
-        return
+      // F5 or Ctrl+R or Cmd+R
+      if (e.key === 'F5' || (e.ctrlKey && e.key === 'r') || (e.metaKey && e.key === 'r')) {
+        e.preventDefault()
+        this.redirectToRandomUser()
       }
-    }
+    })
 
-    // Fallback: check if user manually refreshed using timestamp method
-    const now = Date.now()
-    const lastVisit = sessionStorage.getItem('damn_last_visit')
-    const lastPath = sessionStorage.getItem('damn_last_path')
-    
-    if (lastVisit && lastPath === currentPath) {
-      const timeDiff = now - parseInt(lastVisit)
-      // If less than 2 seconds and same path, consider it a refresh
-      if (timeDiff < 2000) {
-        console.log('Quick revisit detected, redirecting to random user')
-        setTimeout(() => {
-          this.redirectToRandomUser()
-        }, 100)
-        return
+    // Also detect browser refresh button clicks (harder to catch, but we can try)
+    let lastUrl = window.location.href
+    new MutationObserver(() => {
+      const currentUrl = window.location.href
+      if (currentUrl !== lastUrl) {
+        lastUrl = currentUrl
       }
-    }
-    
-    // Store current visit (but clear any redirect flags)
-    sessionStorage.setItem('damn_last_visit', now.toString())
-    sessionStorage.setItem('damn_last_path', currentPath)
+    }).observe(document, { subtree: true, childList: true })
   }
 
   async handleRoute() {
     const path = window.location.pathname
-    
     console.log('Current path:', path)
-
-    // Check if we're in a redirect loop prevention mode
-    const isRedirectPrevention = sessionStorage.getItem('damn_preventing_loop')
-    if (isRedirectPrevention) {
-      console.log('Preventing redirect loop, clearing flag')
-      sessionStorage.removeItem('damn_preventing_loop')
-    }
 
     // Root domain - redirect to random user
     if (path === '/' || path === '') {
@@ -127,14 +109,7 @@ class DamnPicturesRouter {
       
       console.log('Redirecting to:', targetUrl)
       
-      // Set flag to prevent immediate redirect loop
-      sessionStorage.setItem('damn_preventing_loop', 'true')
-      
-      // Clear the refresh detection data
-      sessionStorage.removeItem('damn_last_visit')
-      sessionStorage.removeItem('damn_last_path')
-      
-      // Navigate to new user
+      // Simple redirect
       window.location.href = targetUrl
       
     } catch (error) {
