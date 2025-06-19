@@ -7,49 +7,56 @@ class DamnPicturesRouter {
   }
 
   init() {
-    // Simple refresh detection: if we have a special flag, do random redirect
-    const shouldRedirect = new URLSearchParams(window.location.search).get('r')
-    
-    if (shouldRedirect === '1') {
-      // Remove the flag from URL and redirect to random user
-      const url = new URL(window.location)
-      url.searchParams.delete('r')
-      window.history.replaceState({}, '', url.pathname)
-      this.redirectToRandomUser()
-      return
-    }
-
-    // Handle initial page load
-    window.addEventListener('load', () => this.handleRoute())
+    // Handle initial page load with refresh detection
+    window.addEventListener('load', () => {
+      // Check if this was a refresh on a user page
+      if (this.wasPageRefreshed() && window.location.pathname.startsWith('/u/')) {
+        console.log('Refresh detected on user page, redirecting to random user')
+        this.redirectToRandomUser()
+      } else {
+        this.handleRoute()
+      }
+    })
     
     // Handle browser back/forward
     window.addEventListener('popstate', () => this.handleRoute())
     
-    // Override refresh behavior only on user pages
-    this.setupRefreshOverride()
+    // Mark navigation as intentional (not a refresh)
+    this.markIntentionalNavigation()
   }
 
-  setupRefreshOverride() {
-    // Intercept F5, Ctrl+R, and Cmd+R
-    document.addEventListener('keydown', (e) => {
-      // Check if we're on a user page
-      if (!window.location.pathname.startsWith('/u/')) return
-      
-      // F5 or Ctrl+R or Cmd+R
-      if (e.key === 'F5' || (e.ctrlKey && e.key === 'r') || (e.metaKey && e.key === 'r')) {
-        e.preventDefault()
-        this.redirectToRandomUser()
+  wasPageRefreshed() {
+    // Method 1: Check performance navigation timing
+    const perfEntries = performance.getEntriesByType('navigation')
+    if (perfEntries.length > 0) {
+      const navEntry = perfEntries[0]
+      if (navEntry.type === 'reload') {
+        return true
       }
-    })
+    }
 
-    // Also detect browser refresh button clicks (harder to catch, but we can try)
-    let lastUrl = window.location.href
-    new MutationObserver(() => {
-      const currentUrl = window.location.href
-      if (currentUrl !== lastUrl) {
-        lastUrl = currentUrl
-      }
-    }).observe(document, { subtree: true, childList: true })
+    // Method 2: Check if we came from the same domain without a referrer flag
+    const wasIntentional = sessionStorage.getItem('damn_intentional_nav')
+    const lastPath = sessionStorage.getItem('damn_last_path')
+    const currentPath = window.location.pathname
+    
+    // If we didn't mark this as intentional AND we're on the same path, it's likely a refresh
+    if (!wasIntentional && lastPath === currentPath) {
+      return true
+    }
+
+    return false
+  }
+
+  markIntentionalNavigation() {
+    // Mark this navigation as intentional
+    sessionStorage.setItem('damn_intentional_nav', 'true')
+    sessionStorage.setItem('damn_last_path', window.location.pathname)
+    
+    // Clear the flag after a short delay so refreshes can be detected
+    setTimeout(() => {
+      sessionStorage.removeItem('damn_intentional_nav')
+    }, 1000)
   }
 
   async handleRoute() {
@@ -109,7 +116,11 @@ class DamnPicturesRouter {
       
       console.log('Redirecting to:', targetUrl)
       
-      // Simple redirect
+      // Mark this as intentional navigation before redirecting
+      sessionStorage.setItem('damn_intentional_nav', 'true')
+      sessionStorage.setItem('damn_last_path', targetUrl)
+      
+      // Navigate to new user
       window.location.href = targetUrl
       
     } catch (error) {
