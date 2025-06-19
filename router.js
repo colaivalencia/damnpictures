@@ -3,6 +3,7 @@ class DamnPicturesRouter {
   constructor() {
     this.currentUser = null
     this.isRedirecting = false
+    this.lastVisitTime = null
     this.init()
   }
 
@@ -13,47 +14,31 @@ class DamnPicturesRouter {
     // Handle browser back/forward
     window.addEventListener('popstate', () => this.handleRoute())
     
-    // Handle refresh - ALWAYS redirect to random user
-    // Note: This only works with hash routing for local development
-    if (window.location.protocol === 'file:' || window.location.hostname === 'localhost') {
-      console.log('Local development mode - using hash routing');
-      this.setupHashRouting();
-    } else {
-      // Production mode with proper server
-      window.addEventListener('beforeunload', () => {
-        if (!this.isRedirecting) {
-          this.redirectToRandomUser()
-        }
-      })
-    }
+    // Set up refresh detection for random redirects
+    this.setupRefreshDetection()
   }
 
-  setupHashRouting() {
-    // For local development, use hash-based routing
-    window.addEventListener('hashchange', () => this.handleHashRoute())
+  setupRefreshDetection() {
+    // Store timestamp when page loads
+    const now = Date.now()
+    const lastVisit = localStorage.getItem('damn_last_visit')
+    const currentPath = window.location.pathname
+    const lastPath = localStorage.getItem('damn_last_path')
     
-    // If no hash, redirect to random user
-    if (!window.location.hash) {
-      this.redirectToRandomUser(true); // use hash mode
-    } else {
-      this.handleHashRoute();
-    }
-  }
-
-  handleHashRoute() {
-    const hash = window.location.hash;
-    console.log('Hash route:', hash);
-    
-    if (hash.startsWith('#/u/')) {
-      const username = hash.split('#/u/')[1];
-      if (username) {
-        this.loadUserGallery(username);
-      } else {
-        this.redirectToRandomUser(true);
+    // If it's been less than 5 seconds since last visit on the same path,
+    // consider it a refresh and redirect to random user
+    if (lastVisit && lastPath === currentPath) {
+      const timeDiff = now - parseInt(lastVisit)
+      if (timeDiff < 5000) { // 5 seconds
+        console.log('Refresh detected, redirecting to random user')
+        this.redirectToRandomUser()
+        return
       }
-    } else {
-      this.redirectToRandomUser(true);
     }
+    
+    // Store current visit
+    localStorage.setItem('damn_last_visit', now.toString())
+    localStorage.setItem('damn_last_path', currentPath)
   }
 
   async handleRoute() {
@@ -62,7 +47,7 @@ class DamnPicturesRouter {
     console.log('Current path:', path)
 
     // Root domain - redirect to random user
-    if (path === '/' || path === '' || path.endsWith('index.html')) {
+    if (path === '/' || path === '') {
       await this.redirectToRandomUser()
       return
     }
@@ -82,7 +67,7 @@ class DamnPicturesRouter {
     await this.redirectToRandomUser()
   }
 
-  async redirectToRandomUser(useHash = false) {
+  async redirectToRandomUser() {
     if (this.isRedirecting) return
     
     this.isRedirecting = true
@@ -99,21 +84,27 @@ class DamnPicturesRouter {
         return
       }
 
+      // Filter out current user to ensure we get someone different
+      const currentPath = window.location.pathname
+      const currentUsername = currentPath.startsWith('/u/') ? currentPath.split('/u/')[1] : null
+      const availableUsers = currentUsername ? 
+        users.filter(user => user.username !== currentUsername) : users
+
+      // If we filtered out the only user, just use all users
+      const usersToChooseFrom = availableUsers.length > 0 ? availableUsers : users
+
       // Pick random user
-      const randomUser = users[Math.floor(Math.random() * users.length)]
+      const randomUser = usersToChooseFrom[Math.floor(Math.random() * usersToChooseFrom.length)]
+      const targetUrl = `/u/${randomUser.username}`
       
-      if (useHash || window.location.protocol === 'file:' || window.location.hostname === 'localhost') {
-        // Use hash routing for local development
-        const targetUrl = `#/u/${randomUser.username}`
-        console.log('Redirecting to (hash):', targetUrl)
-        window.location.hash = targetUrl
-      } else {
-        // Use proper routing for production
-        const targetUrl = `/u/${randomUser.username}`
-        console.log('Redirecting to:', targetUrl)
-        window.history.replaceState({}, '', targetUrl)
-        await this.loadUserGallery(randomUser.username)
-      }
+      console.log('Redirecting to:', targetUrl)
+      
+      // Update localStorage to prevent immediate re-redirect
+      localStorage.setItem('damn_last_visit', Date.now().toString())
+      localStorage.setItem('damn_last_path', targetUrl)
+      
+      // Navigate to new user
+      window.location.href = targetUrl
       
     } catch (error) {
       console.error('Error redirecting to random user:', error)
@@ -255,10 +246,9 @@ class DamnPicturesRouter {
     `
   }
 
-  // Method to manually trigger random redirect (for refresh behavior)
+  // Manual method to trigger random redirect
   async goToRandomUser() {
-    const useHash = window.location.protocol === 'file:' || window.location.hostname === 'localhost';
-    await this.redirectToRandomUser(useHash)
+    await this.redirectToRandomUser()
   }
 }
 
