@@ -59,11 +59,26 @@ exports.handler = async (event, context) => {
 // Get Google Drive access token using service account
 async function getAccessToken() {
   try {
+    // Clean and format the private key properly
+    let privateKey = process.env.GOOGLE_DRIVE_PRIVATE_KEY;
+    
+    // Handle different private key formats
+    if (privateKey.includes('\\n')) {
+      privateKey = privateKey.replace(/\\n/g, '\n');
+    }
+    
+    // Ensure proper line breaks
+    if (!privateKey.includes('\n')) {
+      privateKey = privateKey
+        .replace('-----BEGIN PRIVATE KEY-----', '-----BEGIN PRIVATE KEY-----\n')
+        .replace('-----END PRIVATE KEY-----', '\n-----END PRIVATE KEY-----');
+    }
+
     const credentials = {
       type: 'service_account',
       project_id: process.env.GOOGLE_DRIVE_PROJECT_ID,
       private_key_id: '',
-      private_key: process.env.GOOGLE_DRIVE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+      private_key: privateKey,
       client_email: process.env.GOOGLE_DRIVE_CLIENT_EMAIL,
       client_id: '',
       auth_uri: 'https://accounts.google.com/o/oauth2/auth',
