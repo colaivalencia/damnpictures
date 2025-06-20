@@ -173,7 +173,8 @@ async function handleUpload({ fileData, filename, username, mimeType }) {
     // Make file public
     await makeFilePublic(uploadResult.id, access_token);
 
-    const publicUrl = `https://drive.google.com/uc?id=${uploadResult.id}`;
+    // Use direct image URL format that works better for display
+    const publicUrl = `https://drive.google.com/uc?export=view&id=${uploadResult.id}`;
 
     return {
       statusCode: 200,
