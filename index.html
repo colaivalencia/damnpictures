@@ -106,8 +106,11 @@
             <input type="file" id="photoUpload" class="file-input" accept="image/*" multiple />
           </div>
           
-          <!-- Upload button - separate from dropzone -->
-          <button class="upload-btn" id="uploadBtn" disabled>Select Photos</button>
+          <!-- Button container for both Review and Quick Upload -->
+          <div class="upload-btn-container">
+            <button class="upload-btn" id="uploadBtn" disabled>Select Photos</button>
+            <!-- Quick upload button will be dynamically added here -->
+          </div>
           
           <!-- Progress bar -->
           <div class="upload-progress" id="uploadProgress">

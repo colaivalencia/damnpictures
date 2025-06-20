@@ -275,15 +275,40 @@ class ImageUploadManager {
 
   updateUploadButton() {
     const fileCount = this.pendingFiles.length;
+    const uploadBtnContainer = this.uploadBtn.parentElement;
     
     if (fileCount > 0) {
+      // Show both Review and Quick Upload buttons
       this.uploadBtn.textContent = `Review ${fileCount} Photo${fileCount > 1 ? 's' : ''}`;
       this.uploadBtn.disabled = false;
       this.uploadBtn.style.background = 'linear-gradient(45deg, #667eea, #764ba2)';
+      
+      // Create or update quick upload button
+      let quickUploadBtn = document.getElementById('quickUploadBtn');
+      if (!quickUploadBtn) {
+        quickUploadBtn = document.createElement('button');
+        quickUploadBtn.id = 'quickUploadBtn';
+        quickUploadBtn.className = 'quick-upload-btn';
+        quickUploadBtn.addEventListener('click', () => {
+          this.proceedWithUpload();
+        });
+        uploadBtnContainer.appendChild(quickUploadBtn);
+      }
+      
+      quickUploadBtn.textContent = `Quick Upload ${fileCount} Photo${fileCount > 1 ? 's' : ''}`;
+      quickUploadBtn.disabled = false;
+      quickUploadBtn.style.display = 'block';
+      
     } else {
+      // Hide quick upload button and reset main button
       this.uploadBtn.textContent = 'Select Photos';
       this.uploadBtn.disabled = true;
       this.uploadBtn.style.background = '#555';
+      
+      const quickUploadBtn = document.getElementById('quickUploadBtn');
+      if (quickUploadBtn) {
+        quickUploadBtn.style.display = 'none';
+      }
     }
   }
 
@@ -410,6 +435,12 @@ class ImageUploadManager {
     this.hideConfirmationModal();
     this.resetUploadSection();
     this.updateUploadButton();
+    
+    // Hide quick upload button
+    const quickUploadBtn = document.getElementById('quickUploadBtn');
+    if (quickUploadBtn) {
+      quickUploadBtn.style.display = 'none';
+    }
   }
 
   // NEW: Proceed with upload after confirmation
@@ -508,6 +539,12 @@ class ImageUploadManager {
       this.pendingFiles = [];
       this.fileInput.value = '';
       this.resetUploadSection();
+      
+      // Hide quick upload button
+      const quickUploadBtn = document.getElementById('quickUploadBtn');
+      if (quickUploadBtn) {
+        quickUploadBtn.style.display = 'none';
+      }
     }
 
     // Refresh the photo list
