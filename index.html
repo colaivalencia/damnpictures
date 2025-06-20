@@ -96,24 +96,24 @@
 
       <!-- Body -->
       <div class="modal-body">
-        <!-- Upload Section (Replace this section in your index.html) -->
-<div class="upload-section" id="uploadSection">
-  <!-- Dropzone area -->
-  <div class="upload-dropzone" id="uploadDropzone">
-    <div class="upload-icon">📸</div>
-    <div class="upload-text">Drop your photos here or click to browse</div>
-    <div class="upload-subtext">Supports JPG, PNG, GIF up to 10MB</div>
-    <input type="file" id="photoUpload" class="file-input" accept="image/*" multiple />
-  </div>
-  
-  <!-- Upload button - separate from dropzone -->
-  <button class="upload-btn" id="uploadBtn" disabled>Select Photos</button>
-  
-  <!-- Progress bar -->
-  <div class="upload-progress" id="uploadProgress">
-    <div class="upload-progress-bar" id="uploadProgressBar"></div>
-  </div>
-</div>
+        <!-- Upload Section with Smart Compression -->
+        <div class="upload-section" id="uploadSection">
+          <!-- Dropzone area -->
+          <div class="upload-dropzone" id="uploadDropzone">
+            <div class="upload-icon">📸</div>
+            <div class="upload-text">Drop your photos here or click to browse</div>
+            <div class="upload-subtext">Supports JPG, PNG, GIF • Auto-compressed to 2MB • Any size accepted</div>
+            <input type="file" id="photoUpload" class="file-input" accept="image/*" multiple />
+          </div>
+          
+          <!-- Upload button - separate from dropzone -->
+          <button class="upload-btn" id="uploadBtn" disabled>Select Photos</button>
+          
+          <!-- Progress bar -->
+          <div class="upload-progress" id="uploadProgress">
+            <div class="upload-progress-bar" id="uploadProgressBar"></div>
+          </div>
+        </div>
 
         <!-- Photo Management -->
         <div class="photos-section">

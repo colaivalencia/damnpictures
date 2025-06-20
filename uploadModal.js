@@ -1,477 +1,464 @@
-// ===== GOOGLE DRIVE PHOTO UPLOAD SYSTEM (UP TO 72 PHOTOS) =====
+// Fixed uploadModal.js with proper file size validation and image compression
 
-console.log('Google Drive upload system loaded');
-
-document.addEventListener('DOMContentLoaded', function() {
-  console.log('DOM ready, initializing Google Drive upload system');
-  
-  const photoInput = document.getElementById('photoUpload');
-  const uploadBtn = document.getElementById('uploadBtn');
-  const photoList = document.getElementById('photoList');
-  const uploadProgress = document.getElementById('uploadProgress');
-  const uploadBar = document.getElementById('uploadProgressBar');
-  const uploadSection = document.getElementById('uploadSection');
-
-  if (!photoInput || !uploadBtn) {
-    console.error('Critical elements not found!');
-    return;
+class ImageUploadManager {
+  constructor() {
+    this.maxFileSize = 2 * 1024 * 1024; // 2MB in bytes
+    this.compressionQuality = 0.8; // Start with 80% quality
+    this.maxDimension = 2048; // Max width/height for compression
+    this.init();
   }
 
-  let isUploading = false;
-  const MAX_FILES = 72;
+  init() {
+    this.fileInput = document.getElementById('photoUpload');
+    this.uploadBtn = document.getElementById('uploadBtn');
+    this.uploadSection = document.getElementById('uploadSection');
+    this.dropzone = document.getElementById('uploadDropzone');
+    this.progressBar = document.getElementById('uploadProgress');
+    this.progressBarFill = document.getElementById('uploadProgressBar');
+    this.photoList = document.getElementById('photoList');
 
-  // ===== FILE SELECTION WITH LIMIT =====
-  photoInput.addEventListener('change', function() {
-    console.log('File input changed!');
-    const files = photoInput.files;
-    console.log('Files selected:', files.length);
+    this.setupEventListeners();
+    this.loadUserPhotos();
+  }
+
+  setupEventListeners() {
+    // File input change
+    this.fileInput.addEventListener('change', (e) => {
+      this.handleFiles(e.target.files);
+    });
+
+    // Upload button click
+    this.uploadBtn.addEventListener('click', () => {
+      if (this.fileInput.files.length > 0) {
+        this.uploadFiles();
+      } else {
+        this.fileInput.click();
+      }
+    });
+
+    // Drag and drop
+    this.setupDragAndDrop();
+
+    // Update button state when files selected
+    this.fileInput.addEventListener('change', () => {
+      this.updateUploadButton();
+    });
+  }
+
+  setupDragAndDrop() {
+    const preventDefaults = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+    };
+
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+      this.dropzone.addEventListener(eventName, preventDefaults);
+    });
+
+    ['dragenter', 'dragover'].forEach(eventName => {
+      this.dropzone.addEventListener(eventName, () => {
+        this.uploadSection.classList.add('drag-over');
+      });
+    });
+
+    ['dragleave', 'drop'].forEach(eventName => {
+      this.dropzone.addEventListener(eventName, () => {
+        this.uploadSection.classList.remove('drag-over');
+      });
+    });
+
+    this.dropzone.addEventListener('drop', (e) => {
+      const files = e.dataTransfer.files;
+      this.handleFiles(files);
+    });
+  }
+
+  handleFiles(files) {
+    const fileArray = Array.from(files);
+    const imageFiles = fileArray.filter(file => file.type.startsWith('image/'));
     
-    if (files.length > MAX_FILES) {
-      alert(`You can upload a maximum of ${MAX_FILES} photos at once. Please select fewer files.`);
-      photoInput.value = '';
-      uploadBtn.disabled = true;
-      uploadBtn.textContent = 'Select Photos';
+    if (imageFiles.length === 0) {
+      alert('Please select image files only (JPG, PNG, GIF, WebP)');
       return;
     }
+
+    if (imageFiles.length !== fileArray.length) {
+      alert(`${fileArray.length - imageFiles.length} non-image files were ignored`);
+    }
+
+    // Validate and show file info
+    this.validateAndDisplayFiles(imageFiles);
+  }
+
+  async validateAndDisplayFiles(files) {
+    console.log(`Processing ${files.length} files...`);
     
-    if (files.length > 0) {
-      console.log('Enabling upload button');
-      uploadBtn.disabled = false;
-      uploadBtn.textContent = `Upload ${files.length} photo${files.length > 1 ? 's' : ''}`;
-      uploadBtn.style.background = 'linear-gradient(45deg, #667eea, #764ba2)';
+    const validFiles = [];
+    const oversizedFiles = [];
+    
+    for (const file of files) {
+      console.log(`Checking file: ${file.name} (${this.formatFileSize(file.size)})`);
+      
+      if (file.size > this.maxFileSize) {
+        console.log(`File ${file.name} is too large, will compress`);
+        try {
+          const compressedFile = await this.compressImage(file);
+          if (compressedFile.size <= this.maxFileSize) {
+            validFiles.push(compressedFile);
+            console.log(`✅ Compressed ${file.name} from ${this.formatFileSize(file.size)} to ${this.formatFileSize(compressedFile.size)}`);
+          } else {
+            oversizedFiles.push(file);
+            console.log(`❌ Could not compress ${file.name} enough`);
+          }
+        } catch (error) {
+          console.error(`Compression failed for ${file.name}:`, error);
+          oversizedFiles.push(file);
+        }
+      } else {
+        validFiles.push(file);
+        console.log(`✅ File ${file.name} is acceptable size`);
+      }
+    }
+
+    // Show results
+    if (oversizedFiles.length > 0) {
+      const oversizedNames = oversizedFiles.map(f => f.name).join(', ');
+      alert(`These files are too large and couldn't be compressed enough: ${oversizedNames}`);
+    }
+
+    if (validFiles.length > 0) {
+      // Update file input with valid files
+      const dt = new DataTransfer();
+      validFiles.forEach(file => dt.items.add(file));
+      this.fileInput.files = dt.files;
+      
+      this.updateUploadButton();
+      this.showFilePreview(validFiles);
     } else {
-      console.log('Disabling upload button');
-      uploadBtn.disabled = true;
-      uploadBtn.textContent = 'Select Photos';
+      this.updateUploadButton();
     }
-  });
+  }
 
-  // ===== DRAG & DROP =====
-  uploadSection.addEventListener('click', function(e) {
-    if (e.target === uploadSection || e.target.classList.contains('upload-text') || e.target.classList.contains('upload-icon') || e.target.classList.contains('upload-subtext')) {
-      photoInput.click();
+  async compressImage(file) {
+    return new Promise((resolve, reject) => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+      
+      img.onload = () => {
+        try {
+          // Calculate new dimensions
+          let { width, height } = this.calculateDimensions(img.width, img.height);
+          
+          canvas.width = width;
+          canvas.height = height;
+          
+          // Draw and compress
+          ctx.drawImage(img, 0, 0, width, height);
+          
+          // Try different quality levels until under 2MB
+          this.compressWithQuality(canvas, file, resolve, reject);
+          
+        } catch (error) {
+          reject(error);
+        }
+      };
+      
+      img.onerror = () => reject(new Error('Failed to load image'));
+      img.src = URL.createObjectURL(file);
+    });
+  }
+
+  compressWithQuality(canvas, originalFile, resolve, reject, quality = this.compressionQuality) {
+    canvas.toBlob((blob) => {
+      if (!blob) {
+        reject(new Error('Compression failed'));
+        return;
+      }
+
+      // If still too large and quality can be reduced further
+      if (blob.size > this.maxFileSize && quality > 0.1) {
+        console.log(`Still ${this.formatFileSize(blob.size)}, reducing quality to ${Math.round((quality - 0.1) * 100)}%`);
+        this.compressWithQuality(canvas, originalFile, resolve, reject, quality - 0.1);
+        return;
+      }
+
+      // Create file with compressed data
+      const compressedFile = new File([blob], originalFile.name, {
+        type: originalFile.type,
+        lastModified: Date.now()
+      });
+
+      resolve(compressedFile);
+    }, originalFile.type, quality);
+  }
+
+  calculateDimensions(originalWidth, originalHeight) {
+    if (originalWidth <= this.maxDimension && originalHeight <= this.maxDimension) {
+      return { width: originalWidth, height: originalHeight };
     }
-  });
 
-  uploadSection.addEventListener('dragover', function(e) {
-    e.preventDefault();
-    uploadSection.classList.add('drag-over');
-  });
-
-  uploadSection.addEventListener('dragleave', function(e) {
-    e.preventDefault();
-    uploadSection.classList.remove('drag-over');
-  });
-
-  uploadSection.addEventListener('drop', function(e) {
-    e.preventDefault();
-    uploadSection.classList.remove('drag-over');
+    const aspectRatio = originalWidth / originalHeight;
     
-    const files = e.dataTransfer.files;
-    console.log('Dropped files:', files.length);
-    
-    if (files.length > MAX_FILES) {
-      alert(`You can upload a maximum of ${MAX_FILES} photos at once. Please select fewer files.`);
-      return;
+    if (originalWidth > originalHeight) {
+      return {
+        width: this.maxDimension,
+        height: Math.round(this.maxDimension / aspectRatio)
+      };
+    } else {
+      return {
+        width: Math.round(this.maxDimension * aspectRatio),
+        height: this.maxDimension
+      };
+    }
+  }
+
+  showFilePreview(files) {
+    const fileNames = files.map(f => `${f.name} (${this.formatFileSize(f.size)})`).join(', ');
+    const uploadText = document.querySelector('.upload-text');
+    if (uploadText) {
+      uploadText.textContent = `${files.length} file(s) ready to upload`;
     }
     
-    if (files.length > 0) {
-      photoInput.files = files;
-      uploadBtn.disabled = false;
-      uploadBtn.textContent = `Upload ${files.length} photo${files.length > 1 ? 's' : ''}`;
+    const uploadSubtext = document.querySelector('.upload-subtext');
+    if (uploadSubtext) {
+      uploadSubtext.textContent = fileNames;
     }
-  });
+  }
 
-  // ===== SEQUENTIAL GOOGLE DRIVE UPLOAD SYSTEM =====
-  uploadBtn.addEventListener('click', async function() {
-    console.log('Google Drive upload started!');
+  updateUploadButton() {
+    const fileCount = this.fileInput.files.length;
     
-    const files = Array.from(photoInput.files);
-    if (!files.length) {
-      console.log('No files selected');
-      return;
+    if (fileCount > 0) {
+      this.uploadBtn.textContent = `Upload ${fileCount} Photo${fileCount > 1 ? 's' : ''}`;
+      this.uploadBtn.disabled = false;
+      this.uploadBtn.style.background = 'linear-gradient(45deg, #667eea, #764ba2)';
+    } else {
+      this.uploadBtn.textContent = 'Select Photos';
+      this.uploadBtn.disabled = true;
+      this.uploadBtn.style.background = '#555';
     }
+  }
 
-    console.log(`Starting sequential upload of ${files.length} files to Google Drive`);
-
-    // Check if user is logged in
-    if (typeof getCurrentUserProfile !== 'function') {
-      console.error('getCurrentUserProfile function not found!');
-      alert('Authentication system not loaded. Please refresh the page.');
-      return;
-    }
-
-    const userProfile = getCurrentUserProfile();
-    if (!userProfile) {
+  async uploadFiles() {
+    if (!window.isLoggedIn()) {
       alert('Please log in to upload photos');
       return;
     }
 
-    if (isUploading) {
-      console.log('Already uploading...');
+    const userProfile = window.getCurrentUserProfile();
+    if (!userProfile) {
+      alert('User profile not found');
       return;
     }
 
-    // Start upload process
-    isUploading = true;
-    uploadBtn.disabled = true;
-    uploadProgress.style.display = 'block';
-    uploadBar.style.width = '0%';
+    const files = Array.from(this.fileInput.files);
+    if (files.length === 0) return;
 
-    const startTime = Date.now();
-    let successCount = 0;
-    let failCount = 0;
+    console.log(`Starting upload of ${files.length} files for user: ${userProfile.username}`);
 
-    try {
-      console.log(`Processing ${files.length} files sequentially via Google Drive`);
+    this.uploadBtn.disabled = true;
+    this.uploadBtn.textContent = 'Uploading...';
+    this.showProgress(true);
 
-      // Check if supabaseHelpers exists
-      if (typeof supabaseHelpers === 'undefined') {
-        throw new Error('supabaseHelpers not found');
-      }
+    const results = {
+      successful: [],
+      failed: []
+    };
 
-      // Get existing photos to check for duplicates
-      console.log('Checking for existing photos...');
-      const { data: existingPhotos, error: existingError } = await supabase
-        .from('photos')
-        .select('original_name, filename')
-        .eq('user_id', userProfile.id);
-
-      if (existingError) {
-        console.error('Error fetching existing photos:', existingError);
-      }
-
-      const existingNames = new Set();
-      if (existingPhotos) {
-        existingPhotos.forEach(photo => {
-          existingNames.add(photo.original_name);
-          existingNames.add(photo.filename);
-        });
-      }
-
-      console.log(`Found ${existingNames.size} existing photo names`);
-
-      // Filter and validate files first
-      const validFiles = [];
-      const duplicateFiles = [];
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const progress = ((i + 1) / files.length) * 100;
       
-      for (const file of files) {
-        if (!validateFile(file)) {
-          failCount++;
+      this.updateProgress(progress);
+      this.uploadBtn.textContent = `Uploading... (${i + 1}/${files.length})`;
+
+      try {
+        console.log(`Uploading file ${i + 1}/${files.length}: ${file.name} (${this.formatFileSize(file.size)})`);
+
+        // Upload to Google Drive via Netlify Function
+        const uploadResult = await supabaseHelpers.uploadPhoto(file, userProfile.username);
+        
+        if (uploadResult.error) {
+          console.error(`Upload failed for ${file.name}:`, uploadResult.error);
+          results.failed.push({ file: file.name, error: uploadResult.error });
           continue;
         }
 
-        // Check for duplicates
-        if (existingNames.has(file.name)) {
-          console.log(`⚠️ Duplicate detected: ${file.name}`);
-          duplicateFiles.push(file.name);
-          failCount++;
-          continue;
-        }
+        // Save metadata to database
+        const photoData = {
+          username: userProfile.username,
+          filename: `${Date.now()}_${file.name}`,
+          original_name: file.name,
+          publicUrl: uploadResult.data.publicUrl,
+          fileId: uploadResult.data.fileId,
+          file_size: file.size
+        };
 
-        validFiles.push(file);
-      }
-
-      // Show duplicate warning if any found
-      if (duplicateFiles.length > 0) {
-        const duplicateList = duplicateFiles.slice(0, 5).join(', ');
-        const moreText = duplicateFiles.length > 5 ? ` and ${duplicateFiles.length - 5} more` : '';
-        alert(`⚠️ Skipping ${duplicateFiles.length} duplicate photo${duplicateFiles.length > 1 ? 's' : ''}:\n${duplicateList}${moreText}\n\nUploading remaining photos...`);
-      }
-
-      console.log(`${validFiles.length} valid files, ${failCount} invalid/duplicate files`);
-
-      // Process files ONE BY ONE to Google Drive
-      for (let i = 0; i < validFiles.length; i++) {
-        const file = validFiles[i];
-        console.log(`\n--- Uploading file ${i + 1}/${validFiles.length}: ${file.name} to Google Drive ---`);
-
-        // Update progress
-        const progressPercent = (i / validFiles.length) * 100;
-        uploadBar.style.width = `${progressPercent}%`;
-        uploadBtn.textContent = `Uploading ${i + 1}/${validFiles.length}: ${file.name.substring(0, 20)}...`;
-
-        try {
-          // Upload file to Google Drive
-          console.log(`Uploading ${file.name} to Google Drive...`);
-          const uploadResult = await supabaseHelpers.uploadPhoto(file, userProfile.username);
-          
-          if (uploadResult.error) {
-            throw new Error(`Google Drive upload failed: ${uploadResult.error.message}`);
-          }
-
-          console.log(`Google Drive upload successful for ${file.name}`);
-
-          // Save metadata to database
-          const photoData = {
-            username: userProfile.username,
-            filename: uploadResult.data.path.split('/').pop(),
-            original_name: file.name,
-            publicUrl: uploadResult.data.publicUrl,
-            fileId: uploadResult.data.fileId,
-            path: uploadResult.data.path,
-            file_size: file.size
-          };
-
-          console.log(`Saving metadata for ${file.name}:`, photoData);
-          const metadataResult = await supabaseHelpers.savePhotoMetadata(photoData, userProfile);
-          
-          if (metadataResult.error) {
-            console.error(`Metadata save failed for ${file.name}:`, metadataResult.error);
-            throw new Error(`Metadata save failed: ${metadataResult.error.message}`);
-          }
-
+        const metadataResult = await supabaseHelpers.savePhotoMetadata(photoData, userProfile);
+        
+        if (metadataResult.error) {
+          console.error(`Metadata save failed for ${file.name}:`, metadataResult.error);
+          results.failed.push({ file: file.name, error: metadataResult.error.message });
+        } else {
           console.log(`✅ Successfully uploaded: ${file.name}`);
-          successCount++;
-
-          // Add to existing names to prevent duplicates in this session
-          existingNames.add(file.name);
-
-        } catch (error) {
-          console.error(`❌ Failed to upload ${file.name}:`, error.message);
-          failCount++;
+          results.successful.push(file.name);
         }
 
-        // Small delay between uploads to prevent overwhelming the server
-        if (i < validFiles.length - 1) {
-          await new Promise(resolve => setTimeout(resolve, 200));
-        }
+      } catch (error) {
+        console.error(`Unexpected error uploading ${file.name}:`, error);
+        results.failed.push({ file: file.name, error: error.message });
       }
-
-      // Final progress
-      uploadBar.style.width = '100%';
-      const totalTime = Math.round((Date.now() - startTime) / 1000);
-      
-      // Show comprehensive results
-      let message = `Google Drive upload completed in ${totalTime} seconds!\n\n`;
-      if (successCount > 0) {
-        message += `✅ Successfully uploaded: ${successCount} photos\n`;
-      }
-      if (failCount > 0) {
-        const duplicateCount = duplicateFiles.length;
-        const otherFailures = failCount - duplicateCount;
-        if (duplicateCount > 0) {
-          message += `⚠️ Skipped duplicates: ${duplicateCount} photos\n`;
-        }
-        if (otherFailures > 0) {
-          message += `❌ Failed uploads: ${otherFailures} photos\n`;
-        }
-      }
-      message += `\nTotal processed: ${successCount + failCount} photos`;
-      
-      alert(message);
-      
-      // Refresh photo grid
-      if (successCount > 0 && typeof loadUserPhotos === 'function') {
-        console.log('Refreshing photo grid...');
-        await loadUserPhotos();
-      }
-
-    } catch (error) {
-      console.error('Upload process error:', error);
-      alert('Upload failed: ' + error.message);
-    } finally {
-      // Reset UI
-      console.log(`\n=== GOOGLE DRIVE UPLOAD SUMMARY ===`);
-      console.log(`Total files: ${files.length}`);
-      console.log(`Successful: ${successCount}`);
-      console.log(`Failed: ${failCount}`);
-      console.log(`=====================================`);
-      
-      isUploading = false;
-      uploadBtn.disabled = true;
-      uploadBtn.textContent = 'Select Photos';
-      uploadProgress.style.display = 'none';
-      uploadBar.style.width = '0%';
-      photoInput.value = '';
-    }
-  });
-
-  // ===== FILE VALIDATION =====
-  function validateFile(file) {
-    // Check file type
-    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
-    if (!allowedTypes.includes(file.type.toLowerCase())) {
-      console.log(`❌ Invalid type: ${file.name} (${file.type})`);
-      return false;
     }
 
-    // Check file size (10MB max)
-    const maxSize = 10 * 1024 * 1024;
-    if (file.size > maxSize) {
-      console.log(`❌ Too large: ${file.name} (${(file.size / 1024 / 1024).toFixed(1)}MB)`);
-      return false;
+    // Upload complete
+    this.showProgress(false);
+    this.uploadBtn.disabled = false;
+    this.updateUploadButton();
+
+    // Show results
+    if (results.successful.length > 0) {
+      console.log(`✅ Successfully uploaded ${results.successful.length} photos`);
     }
 
-    // Check for minimum size (avoid corrupted files)
-    if (file.size < 1024) {
-      console.log(`❌ Too small: ${file.name} (${file.size} bytes)`);
-      return false;
+    if (results.failed.length > 0) {
+      console.error(`❌ Failed to upload ${results.failed.length} photos:`, results.failed);
+      const failedNames = results.failed.map(f => f.file).join(', ');
+      alert(`Failed to upload: ${failedNames}`);
+    } else {
+      // Clear the file input and reset preview
+      this.fileInput.value = '';
+      this.resetUploadSection();
     }
 
-    return true;
+    // Refresh the photo list
+    await this.loadUserPhotos();
   }
 
-  // ===== LOAD USER PHOTOS (GOOGLE DRIVE COMPATIBLE) =====
-  window.loadUserPhotos = async function() {
-    console.log('Loading user photos from Google Drive...');
+  resetUploadSection() {
+    const uploadText = document.querySelector('.upload-text');
+    const uploadSubtext = document.querySelector('.upload-subtext');
     
-    if (typeof getCurrentUserProfile !== 'function') {
-      console.error('getCurrentUserProfile not available');
-      return;
+    if (uploadText) {
+      uploadText.textContent = 'Drop your photos here or click to browse';
     }
-    
-    const userProfile = getCurrentUserProfile();
-    if (!userProfile) {
-      console.log('No user profile');
-      return;
+    if (uploadSubtext) {
+      uploadSubtext.textContent = 'Supports JPG, PNG, GIF up to 2MB (auto-compressed)';
     }
+  }
+
+  showProgress(show) {
+    if (show) {
+      this.progressBar.style.display = 'block';
+    } else {
+      this.progressBar.style.display = 'none';
+      this.updateProgress(0);
+    }
+  }
+
+  updateProgress(percent) {
+    this.progressBarFill.style.width = `${percent}%`;
+  }
+
+  async loadUserPhotos() {
+    const userProfile = window.getCurrentUserProfile();
+    if (!userProfile) return;
 
     try {
-      const { data: photos, error } = await supabase
-        .from('photos')
-        .select('id, filename, original_name, file_url, file_path, drive_file_id, created_at')
-        .eq('user_id', userProfile.id)
-        .order('created_at', { ascending: false });
-
-      console.log('User photos loaded:', photos?.length || 0);
-
+      const { data: photos, error } = await supabaseHelpers.getUserPhotos(userProfile.username);
+      
       if (error) {
-        console.error('Error loading photos:', error);
+        console.error('Error loading user photos:', error);
         return;
       }
 
-      displayUserPhotos(photos || []);
-
+      this.displayUserPhotos(photos || []);
+      
     } catch (error) {
       console.error('Error loading user photos:', error);
     }
-  };
+  }
 
-  // ===== DISPLAY PHOTOS (GOOGLE DRIVE COMPATIBLE) =====
-  function displayUserPhotos(photos) {
-    if (!photos.length) {
-      photoList.innerHTML = `
+  displayUserPhotos(photos) {
+    if (!photos || photos.length === 0) {
+      this.photoList.innerHTML = `
         <div class="empty-state">
           <div class="empty-state-icon">📷</div>
           <div>No photos uploaded yet</div>
-          <div style="font-size: 12px; color: #888; margin-top: 8px;">You can upload up to ${MAX_FILES} photos at once</div>
         </div>
       `;
       return;
     }
 
-    photoList.innerHTML = '';
-
-    // Add photo count header
-    const header = document.createElement('div');
-    header.style.gridColumn = '1 / -1';
-    header.style.marginBottom = '16px';
-    header.style.color = '#ccc';
-    header.style.fontSize = '14px';
-    header.innerHTML = `${photos.length} photo${photos.length !== 1 ? 's' : ''} uploaded`;
-    photoList.appendChild(header);
-
-    photos.forEach(photo => {
-      const photoItem = document.createElement('div');
-      photoItem.className = 'photo-item';
+    this.photoList.innerHTML = photos.map(photo => {
+      const imageUrl = this.getOptimizedImageUrl(photo);
       
-      // Use file_url if available (Google Drive), otherwise use Supabase storage
-      let imageUrl;
-      let deleteId;
+      return `
+        <div class="photo-item" data-photo-id="${photo.id}">
+          <img src="${imageUrl}" alt="${photo.original_name}" loading="lazy" />
+          <div class="photo-overlay">
+            <button class="delete-btn" onclick="uploadManager.deletePhoto('${photo.id}', '${photo.drive_file_id}')">
+              ×
+            </button>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  getOptimizedImageUrl(photo) {
+    if (photo.drive_file_id) {
+      return `https://lh3.googleusercontent.com/d/${photo.drive_file_id}=w400-h400-c`;
+    }
+    return photo.file_url;
+  }
+
+  async deletePhoto(photoId, driveFileId) {
+    if (!confirm('Are you sure you want to delete this photo?')) {
+      return;
+    }
+
+    try {
+      console.log(`Deleting photo: ${photoId}`);
       
-      if (photo.file_url) {
-        // Google Drive
-        imageUrl = photo.file_url;
-        deleteId = photo.drive_file_id;
-      } else if (photo.file_path) {
-        // Supabase Storage fallback
-        const { data } = supabase.storage
-          .from('photos')
-          .getPublicUrl(photo.file_path);
-        imageUrl = data.publicUrl;
-        deleteId = photo.file_path;
+      const { error } = await supabaseHelpers.deletePhoto(photoId, driveFileId);
+      
+      if (error) {
+        console.error('Delete error:', error);
+        alert('Failed to delete photo. Please try again.');
+        return;
       }
 
-      photoItem.innerHTML = `
-        <img src="${imageUrl}" alt="${photo.original_name}" loading="lazy" 
-             onerror="this.onerror=null; if(this.src.includes('uc?export=view')) { 
-               this.src='https://drive.google.com/thumbnail?id=${photo.drive_file_id}&sz=w200'; 
-             } else { 
-               this.style.display='none'; 
-             }">
-        <div class="photo-overlay">
-          <button class="delete-btn" onclick="deletePhoto('${photo.id}', '${deleteId}')" title="Delete photo">
-            ×
-          </button>
-        </div>
-      `;
+      console.log('✅ Photo deleted successfully');
+      
+      // Remove from UI
+      const photoElement = document.querySelector(`[data-photo-id="${photoId}"]`);
+      if (photoElement) {
+        photoElement.remove();
+      }
 
-      photoList.appendChild(photoItem);
-    });
-  }
-
-  // ===== LOAD PHOTOS WHEN MODAL OPENS =====
-  const uploadModal = document.getElementById('uploadModal');
-  if (uploadModal) {
-    // Method 1: Use MutationObserver
-    const observer = new MutationObserver((mutations) => {
-      mutations.forEach((mutation) => {
-        if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
-          if (!uploadModal.classList.contains('hidden')) {
-            console.log('Upload modal opened, loading user photos...');
-            if (typeof isLoggedIn === 'function' && isLoggedIn()) {
-              setTimeout(() => {
-                loadUserPhotos();
-              }, 100); // Small delay to ensure DOM is ready
-            }
-          }
-        }
-      });
-    });
-
-    observer.observe(uploadModal, { attributes: true });
-
-    // Method 2: Also add click listener to the label (backup)
-    const label = document.getElementById('colaiLabel');
-    if (label) {
-      label.addEventListener('click', () => {
-        if (isLoggedIn()) {
-          setTimeout(() => {
-            loadUserPhotos();
-          }, 200);
-        }
-      });
-    }
-  }
-
-  console.log(`Google Drive upload system ready - supports up to ${MAX_FILES} photos`);
-}); // ← This closing brace and parenthesis was missing!
-
-// ===== DELETE PHOTO (GOOGLE DRIVE COMPATIBLE) =====
-window.deletePhoto = async function(photoId, fileId) {
-  console.log('Deleting photo:', photoId, 'from Google Drive');
-  
-  if (!confirm('Are you sure you want to delete this photo?')) {
-    return;
-  }
-
-  try {
-    const result = await supabaseHelpers.deletePhoto(photoId, fileId);
-    
-    if (result.error) {
+      // Reload photos to update the list
+      await this.loadUserPhotos();
+      
+    } catch (error) {
+      console.error('Delete error:', error);
       alert('Failed to delete photo. Please try again.');
-      console.error('Delete error:', result.error);
-      return;
     }
-
-    // Refresh photo grid
-    if (typeof loadUserPhotos === 'function') {
-      await loadUserPhotos();
-    }
-
-  } catch (error) {
-    console.error('Error deleting photo:', error);
-    alert('Failed to delete photo. Please try again.');
   }
-};
+
+  formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  }
+}
+
+// Initialize upload manager when DOM is ready
+document.addEventListener('DOMContentLoaded', () => {
+  window.uploadManager = new ImageUploadManager();
+});
+
+// Make manager available globally
+window.ImageUploadManager = ImageUploadManager;
