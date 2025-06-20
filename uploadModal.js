@@ -412,39 +412,41 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   // ===== LOAD PHOTOS WHEN MODAL OPENS =====
-  // Replace the existing modal observer code with this:
-const uploadModal = document.getElementById('uploadModal');
-if (uploadModal) {
-  // Method 1: Use MutationObserver (existing)
-  const observer = new MutationObserver((mutations) => {
-    mutations.forEach((mutation) => {
-      if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
-        if (!uploadModal.classList.contains('hidden')) {
-          console.log('Upload modal opened, loading user photos...');
-          if (typeof isLoggedIn === 'function' && isLoggedIn()) {
-            setTimeout(() => {
-              loadUserPhotos();
-            }, 100); // Small delay to ensure DOM is ready
+  const uploadModal = document.getElementById('uploadModal');
+  if (uploadModal) {
+    // Method 1: Use MutationObserver
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+          if (!uploadModal.classList.contains('hidden')) {
+            console.log('Upload modal opened, loading user photos...');
+            if (typeof isLoggedIn === 'function' && isLoggedIn()) {
+              setTimeout(() => {
+                loadUserPhotos();
+              }, 100); // Small delay to ensure DOM is ready
+            }
           }
         }
-      }
+      });
     });
-  });
 
-  observer.observe(uploadModal, { attributes: true });
+    observer.observe(uploadModal, { attributes: true });
 
-  // Method 2: Also add click listener to the label (backup)
-  const label = document.getElementById('colaiLabel');
-  if (label) {
-    label.addEventListener('click', () => {
-      if (isLoggedIn()) {
-        setTimeout(() => {
-          loadUserPhotos();
-        }, 200);
-      }
-    });
+    // Method 2: Also add click listener to the label (backup)
+    const label = document.getElementById('colaiLabel');
+    if (label) {
+      label.addEventListener('click', () => {
+        if (isLoggedIn()) {
+          setTimeout(() => {
+            loadUserPhotos();
+          }, 200);
+        }
+      });
+    }
   }
-}
+
+  console.log(`Google Drive upload system ready - supports up to ${MAX_FILES} photos`);
+}); // ← This closing brace and parenthesis was missing!
 
 // ===== DELETE PHOTO (GOOGLE DRIVE COMPATIBLE) =====
 window.deletePhoto = async function(photoId, fileId, storageType = 'googledrive') {
