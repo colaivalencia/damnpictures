@@ -1,9 +1,9 @@
-// ===== RELIABLE PHOTO UPLOAD SYSTEM (UP TO 72 PHOTOS) =====
+// ===== GOOGLE DRIVE PHOTO UPLOAD SYSTEM (UP TO 72 PHOTOS) =====
 
-console.log('Reliable upload system loaded');
+console.log('Google Drive upload system loaded');
 
 document.addEventListener('DOMContentLoaded', function() {
-  console.log('DOM ready, initializing reliable upload system');
+  console.log('DOM ready, initializing Google Drive upload system');
   
   const photoInput = document.getElementById('photoUpload');
   const uploadBtn = document.getElementById('uploadBtn');
@@ -82,9 +82,9 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   });
 
-  // ===== SEQUENTIAL UPLOAD SYSTEM (NO DUPLICATES) =====
+  // ===== SEQUENTIAL GOOGLE DRIVE UPLOAD SYSTEM =====
   uploadBtn.addEventListener('click', async function() {
-    console.log('Sequential upload started!');
+    console.log('Google Drive upload started!');
     
     const files = Array.from(photoInput.files);
     if (!files.length) {
@@ -92,7 +92,7 @@ document.addEventListener('DOMContentLoaded', function() {
       return;
     }
 
-    console.log(`Starting sequential upload of ${files.length} files`);
+    console.log(`Starting sequential upload of ${files.length} files to Google Drive`);
 
     // Check if user is logged in
     if (typeof getCurrentUserProfile !== 'function') {
@@ -123,7 +123,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let failCount = 0;
 
     try {
-      console.log(`Processing ${files.length} files sequentially`);
+      console.log(`Processing ${files.length} files sequentially via Google Drive`);
 
       // Check if supabaseHelpers exists
       if (typeof supabaseHelpers === 'undefined') {
@@ -181,10 +181,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
       console.log(`${validFiles.length} valid files, ${failCount} invalid/duplicate files`);
 
-      // Process files ONE BY ONE to avoid duplicates
+      // Process files ONE BY ONE to Google Drive
       for (let i = 0; i < validFiles.length; i++) {
         const file = validFiles[i];
-        console.log(`\n--- Uploading file ${i + 1}/${validFiles.length}: ${file.name} ---`);
+        console.log(`\n--- Uploading file ${i + 1}/${validFiles.length}: ${file.name} to Google Drive ---`);
 
         // Update progress
         const progressPercent = (i / validFiles.length) * 100;
@@ -192,22 +192,24 @@ document.addEventListener('DOMContentLoaded', function() {
         uploadBtn.textContent = `Uploading ${i + 1}/${validFiles.length}: ${file.name.substring(0, 20)}...`;
 
         try {
-          // Upload file to storage
-          console.log(`Uploading ${file.name} to storage...`);
+          // Upload file to Google Drive
+          console.log(`Uploading ${file.name} to Google Drive...`);
           const uploadResult = await supabaseHelpers.uploadPhoto(file, userProfile.username);
           
           if (uploadResult.error) {
-            throw new Error(`Storage upload failed: ${uploadResult.error.message}`);
+            throw new Error(`Google Drive upload failed: ${uploadResult.error.message}`);
           }
 
-          console.log(`Storage upload successful for ${file.name}`);
+          console.log(`Google Drive upload successful for ${file.name}`);
 
           // Save metadata to database
           const photoData = {
             username: userProfile.username,
             filename: uploadResult.data.path.split('/').pop(),
             original_name: file.name,
-            file_path: uploadResult.data.path,
+            publicUrl: uploadResult.data.publicUrl,
+            fileId: uploadResult.data.fileId,
+            path: uploadResult.data.path,
             file_size: file.size
           };
 
@@ -216,8 +218,6 @@ document.addEventListener('DOMContentLoaded', function() {
           
           if (metadataResult.error) {
             console.error(`Metadata save failed for ${file.name}:`, metadataResult.error);
-            // Clean up orphaned file
-            await supabase.storage.from('photos').remove([uploadResult.data.path]);
             throw new Error(`Metadata save failed: ${metadataResult.error.message}`);
           }
 
@@ -234,7 +234,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Small delay between uploads to prevent overwhelming the server
         if (i < validFiles.length - 1) {
-          await new Promise(resolve => setTimeout(resolve, 100));
+          await new Promise(resolve => setTimeout(resolve, 200));
         }
       }
 
@@ -243,7 +243,7 @@ document.addEventListener('DOMContentLoaded', function() {
       const totalTime = Math.round((Date.now() - startTime) / 1000);
       
       // Show comprehensive results
-      let message = `Upload completed in ${totalTime} seconds!\n\n`;
+      let message = `Google Drive upload completed in ${totalTime} seconds!\n\n`;
       if (successCount > 0) {
         message += `✅ Successfully uploaded: ${successCount} photos\n`;
       }
@@ -272,11 +272,11 @@ document.addEventListener('DOMContentLoaded', function() {
       alert('Upload failed: ' + error.message);
     } finally {
       // Reset UI
-      console.log(`\n=== UPLOAD SUMMARY ===`);
+      console.log(`\n=== GOOGLE DRIVE UPLOAD SUMMARY ===`);
       console.log(`Total files: ${files.length}`);
       console.log(`Successful: ${successCount}`);
       console.log(`Failed: ${failCount}`);
-      console.log(`======================`);
+      console.log(`=====================================`);
       
       isUploading = false;
       uploadBtn.disabled = true;
@@ -312,9 +312,9 @@ document.addEventListener('DOMContentLoaded', function() {
     return true;
   }
 
-  // ===== LOAD USER PHOTOS =====
+  // ===== LOAD USER PHOTOS (GOOGLE DRIVE COMPATIBLE) =====
   window.loadUserPhotos = async function() {
-    console.log('Loading user photos...');
+    console.log('Loading user photos from Google Drive...');
     
     if (typeof getCurrentUserProfile !== 'function') {
       console.error('getCurrentUserProfile not available');
@@ -330,7 +330,7 @@ document.addEventListener('DOMContentLoaded', function() {
     try {
       const { data: photos, error } = await supabase
         .from('photos')
-        .select('id, filename, original_name, file_path, created_at')
+        .select('id, filename, original_name, file_url, file_path, drive_file_id, storage_type, created_at')
         .eq('user_id', userProfile.id)
         .order('created_at', { ascending: false });
 
@@ -348,7 +348,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   };
 
-  // ===== DISPLAY PHOTOS =====
+  // ===== DISPLAY PHOTOS (GOOGLE DRIVE COMPATIBLE) =====
   function displayUserPhotos(photos) {
     if (!photos.length) {
       photoList.innerHTML = `
@@ -376,14 +376,32 @@ document.addEventListener('DOMContentLoaded', function() {
       const photoItem = document.createElement('div');
       photoItem.className = 'photo-item';
       
-      const { data } = supabase.storage
-        .from('photos')
-        .getPublicUrl(photo.file_path);
+      // Use file_url if available (Google Drive), otherwise use Supabase storage
+      let imageUrl;
+      let deleteId;
+      
+      if (photo.file_url) {
+        // Google Drive
+        imageUrl = photo.file_url;
+        deleteId = photo.drive_file_id;
+      } else if (photo.file_path) {
+        // Supabase Storage fallback
+        const { data } = supabase.storage
+          .from('photos')
+          .getPublicUrl(photo.file_path);
+        imageUrl = data.publicUrl;
+        deleteId = photo.file_path;
+      }
 
       photoItem.innerHTML = `
-        <img src="${data.publicUrl}" alt="${photo.original_name}" loading="lazy">
+        <img src="${imageUrl}" alt="${photo.original_name}" loading="lazy" 
+             onerror="this.onerror=null; if(this.src.includes('uc?export=view')) { 
+               this.src='https://drive.google.com/thumbnail?id=${photo.drive_file_id}&sz=w200'; 
+             } else { 
+               this.style.display='none'; 
+             }">
         <div class="photo-overlay">
-          <button class="delete-btn" onclick="deletePhoto('${photo.id}', '${photo.file_path}')" title="Delete photo">
+          <button class="delete-btn" onclick="deletePhoto('${photo.id}', '${deleteId}', '${photo.storage_type || 'googledrive'}')" title="Delete photo">
             ×
           </button>
         </div>
@@ -409,19 +427,19 @@ document.addEventListener('DOMContentLoaded', function() {
     observer.observe(uploadModal, { attributes: true });
   }
 
-  console.log(`Reliable upload system ready - supports up to ${MAX_FILES} photos`);
+  console.log(`Google Drive upload system ready - supports up to ${MAX_FILES} photos`);
 });
 
-// ===== DELETE PHOTO =====
-window.deletePhoto = async function(photoId, filePath) {
-  console.log('Deleting photo:', photoId);
+// ===== DELETE PHOTO (GOOGLE DRIVE COMPATIBLE) =====
+window.deletePhoto = async function(photoId, fileId, storageType = 'googledrive') {
+  console.log('Deleting photo:', photoId, 'from', storageType);
   
   if (!confirm('Are you sure you want to delete this photo?')) {
     return;
   }
 
   try {
-    const result = await supabaseHelpers.deletePhoto(photoId, filePath);
+    const result = await supabaseHelpers.deletePhoto(photoId, fileId, storageType);
     
     if (result.error) {
       alert('Failed to delete photo. Please try again.');

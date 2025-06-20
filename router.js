@@ -188,18 +188,46 @@ class DamnPicturesRouter {
 
       const img = document.createElement('img')
       
-      // Get public URL from Supabase Storage
-      const { data } = supabase.storage
-        .from('photos')
-        .getPublicUrl(photo.file_path)
+      // Use file_url if available (Google Drive), otherwise use Supabase storage
+      if (photo.file_url) {
+        // Google Drive or external URL
+        img.src = photo.file_url
+        console.log('Loading Google Drive image:', photo.file_url)
+      } else if (photo.file_path) {
+        // Supabase Storage fallback
+        const { data } = supabase.storage
+          .from('photos')
+          .getPublicUrl(photo.file_path)
+        img.src = data.publicUrl
+        console.log('Loading Supabase image:', data.publicUrl)
+      } else {
+        console.error('No valid URL found for photo:', photo)
+        return
+      }
       
-      img.src = data.publicUrl
       img.alt = photo.original_name || photo.filename
       
-      // Handle image load errors
+      // Handle image load errors with fallback attempts
       img.onerror = () => {
-        console.error('Failed to load image:', photo.filename)
-        slide.style.display = 'none'
+        console.error('Failed to load image:', photo.filename, 'URL:', img.src)
+        
+        // Try alternative Google Drive URL formats if the first one fails
+        if (photo.file_url && photo.drive_file_id) {
+          if (img.src.includes('uc?export=view')) {
+            // Try thumbnail format
+            img.src = `https://drive.google.com/thumbnail?id=${photo.drive_file_id}&sz=w1000`
+            console.log('Trying thumbnail format:', img.src)
+          } else if (img.src.includes('thumbnail')) {
+            // Try direct access format
+            img.src = `https://lh3.googleusercontent.com/d/${photo.drive_file_id}`
+            console.log('Trying direct format:', img.src)
+          } else {
+            // Hide if all formats fail
+            slide.style.display = 'none'
+          }
+        } else {
+          slide.style.display = 'none'
+        }
       }
 
       slide.appendChild(img)
