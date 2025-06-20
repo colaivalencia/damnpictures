@@ -1,4 +1,4 @@
-// Netlify Function for Google Drive uploads
+// Netlify Function for Google Drive uploads with improved private key handling
 const { GoogleAuth } = require('google-auth-library');
 
 // CORS headers for browser requests
@@ -59,20 +59,34 @@ exports.handler = async (event, context) => {
 // Get Google Drive access token using service account
 async function getAccessToken() {
   try {
-    // Clean and format the private key properly
+    console.log('Getting access token...');
+    
+    // Get and clean the private key
     let privateKey = process.env.GOOGLE_DRIVE_PRIVATE_KEY;
+    
+    if (!privateKey) {
+      throw new Error('GOOGLE_DRIVE_PRIVATE_KEY environment variable not set');
+    }
     
     // Handle different private key formats
     if (privateKey.includes('\\n')) {
+      console.log('Converting \\n to actual newlines');
       privateKey = privateKey.replace(/\\n/g, '\n');
     }
     
-    // Ensure proper line breaks
-    if (!privateKey.includes('\n')) {
-      privateKey = privateKey
-        .replace('-----BEGIN PRIVATE KEY-----', '-----BEGIN PRIVATE KEY-----\n')
-        .replace('-----END PRIVATE KEY-----', '\n-----END PRIVATE KEY-----');
+    // Ensure proper formatting
+    if (!privateKey.startsWith('-----BEGIN PRIVATE KEY-----')) {
+      throw new Error('Private key does not start with BEGIN PRIVATE KEY');
     }
+    
+    if (!privateKey.endsWith('-----END PRIVATE KEY-----') && !privateKey.endsWith('-----END PRIVATE KEY-----\n')) {
+      throw new Error('Private key does not end with END PRIVATE KEY');
+    }
+
+    console.log('Private key format looks correct');
+    console.log('Private key length:', privateKey.length);
+    console.log('Private key starts with:', privateKey.substring(0, 50));
+    console.log('Private key ends with:', privateKey.substring(privateKey.length - 50));
 
     const credentials = {
       type: 'service_account',
@@ -86,13 +100,22 @@ async function getAccessToken() {
       auth_provider_x509_cert_url: 'https://www.googleapis.com/oauth2/v1/certs'
     };
 
+    console.log('Creating GoogleAuth with credentials...');
+    console.log('Project ID:', credentials.project_id);
+    console.log('Client Email:', credentials.client_email);
+
     const auth = new GoogleAuth({
       credentials,
       scopes: ['https://www.googleapis.com/auth/drive.file']
     });
 
+    console.log('Getting auth client...');
     const authClient = await auth.getClient();
+    
+    console.log('Getting access token...');
     const accessToken = await authClient.getAccessToken();
+
+    console.log('Access token obtained successfully');
 
     return {
       statusCode: 200,
@@ -104,11 +127,16 @@ async function getAccessToken() {
     };
 
   } catch (error) {
-    console.error('Token error:', error);
+    console.error('Token error details:', error);
+    console.error('Error stack:', error.stack);
     return {
       statusCode: 500,
       headers,
-      body: JSON.stringify({ error: 'Failed to get access token' })
+      body: JSON.stringify({ 
+        error: 'Failed to get access token',
+        details: error.message,
+        type: error.constructor.name
+      })
     };
   }
 }
@@ -116,16 +144,21 @@ async function getAccessToken() {
 // Handle file upload to Google Drive
 async function handleUpload({ fileData, filename, username, mimeType }) {
   try {
+    console.log(`Starting upload process for ${filename}`);
+    
     // Get access token
     const tokenResponse = await getAccessToken();
     if (tokenResponse.statusCode !== 200) {
-      throw new Error('Failed to get access token');
+      const errorData = JSON.parse(tokenResponse.body);
+      throw new Error(`Token error: ${errorData.error} - ${errorData.details}`);
     }
 
     const { access_token } = JSON.parse(tokenResponse.body);
+    console.log('Access token obtained for upload');
 
     // Ensure user folder exists
     const userFolderId = await ensureUserFolder(username, access_token);
+    console.log('User folder ID:', userFolderId);
 
     // Upload file to Google Drive
     const uploadResult = await uploadToGoogleDrive({
@@ -136,8 +169,11 @@ async function handleUpload({ fileData, filename, username, mimeType }) {
       accessToken: access_token
     });
 
+    console.log('File uploaded to Drive:', uploadResult.id);
+
     // Make file public
     await makeFilePublic(uploadResult.id, access_token);
+    console.log('File made public');
 
     const publicUrl = `https://drive.google.com/uc?id=${uploadResult.id}`;
 
@@ -152,7 +188,7 @@ async function handleUpload({ fileData, filename, username, mimeType }) {
     };
 
   } catch (error) {
-    console.error('Upload error:', error);
+    console.error('Upload error details:', error);
     return {
       statusCode: 500,
       headers,
@@ -267,7 +303,8 @@ async function uploadToGoogleDrive({ fileData, filename, mimeType, parentFolderI
   });
 
   if (!response.ok) {
-    throw new Error(`Upload failed: ${response.status}`);
+    const errorText = await response.text();
+    throw new Error(`Upload failed: ${response.status} - ${errorText}`);
   }
 
   return await response.json();
