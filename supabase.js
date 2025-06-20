@@ -1,5 +1,5 @@
 // Supabase configuration with Google Drive integration
-const SUPABASE_URL = 'yxsgedkyoosbauhydtlp'
+const SUPABASE_URL = 'https://yxsgedkyoosbauhydtlp.supabase.co'
 const SUPABASE_ANON_KEY = 'eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl4c2dlZGt5b29zYmF1aHlkdGxwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAxOTIzMTQsImV4cCI6MjA2NTc2ODMxNH0'
 
 // Initialize Supabase client
