@@ -780,26 +780,26 @@ class ImageUploadManager {
     await this.loadUserPhotos();
   }
 
-  // FIXED: Optimized thumbnail URL for photo manager (faster loading)
+  // FIXED: Use the original working URL format for photo manager
   getThumbnailUrl(photo) {
     if (!photo.drive_file_id) {
       return photo.file_url || '/placeholder-image.jpg';
     }
 
-    // Use smaller thumbnail for photo manager (faster loading, less bandwidth)
-    return `https://drive.google.com/thumbnail?id=${photo.drive_file_id}&sz=w200`;
+    // Use the ORIGINAL working format that was working before
+    return `https://lh3.googleusercontent.com/d/${photo.drive_file_id}=w400-h400-c`;
   }
 
-  // FIXED: Handle image loading errors with multiple fallback URLs
+  // FIXED: Use the original working fallback URLs
   handleImageError(imgElement, driveFileId) {
     console.log(`Image failed to load for drive ID: ${driveFileId}`);
     
-    // Try different Google Drive URL formats as fallbacks
+    // Try the ORIGINAL working Google Drive URL formats as fallbacks
     const fallbackUrls = [
-      `https://lh3.googleusercontent.com/d/${driveFileId}=w200-h200-c`,
       `https://drive.google.com/uc?export=view&id=${driveFileId}`,
-      `https://lh3.googleusercontent.com/d/${driveFileId}`,
-      `https://drive.google.com/file/d/${driveFileId}/view`
+      `https://lh3.googleusercontent.com/d/${driveFileId}=w400`,
+      `https://drive.google.com/thumbnail?id=${driveFileId}&sz=w400`,
+      `https://lh3.googleusercontent.com/d/${driveFileId}`
     ];
 
     const currentSrc = imgElement.src;

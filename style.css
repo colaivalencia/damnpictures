@@ -447,10 +447,10 @@ body {
 
 /* === Upload Buttons === */
 .upload-btn {
-  background: linear-gradient(45deg, #667eea, #764ba2);
-  color: white;
-  border: none;
-  padding: 12px 24px;
+  background: transparent;
+  color: #667eea;
+  border: 2px solid #667eea;
+  padding: 10px 22px; /* Adjusted to account for border */
   border-radius: 8px;
   font-weight: 600;
   cursor: pointer;
@@ -459,31 +459,40 @@ body {
   z-index: 3;
   min-width: 140px;
   pointer-events: auto;
+  font-size: 14px;
 }
 
 .upload-btn:hover:not(:disabled) {
+  background: rgba(102, 126, 234, 0.1);
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+  border-color: #5a67d8;
+  color: #5a67d8;
 }
 
 .upload-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
   transform: none;
-  background: #555;
+  border-color: #555;
+  color: #555;
 }
 
 .upload-btn.review-mode {
-  background: linear-gradient(45deg, #667eea, #764ba2) !important;
+  background: transparent !important;
+  color: #667eea !important;
+  border: 2px solid #667eea !important;
 }
 
 .upload-btn.review-mode:hover:not(:disabled) {
-  background: linear-gradient(45deg, #5a67d8, #6b46c1) !important;
+  background: rgba(102, 126, 234, 0.1) !important;
+  border-color: #5a67d8 !important;
+  color: #5a67d8 !important;
 }
 
-/* === Quick Upload Button === */
+/* === Quick Upload Button (Primary) === */
 .quick-upload-btn {
-  background: linear-gradient(45deg, #28a745, #20c997);
+  background: linear-gradient(45deg, #667eea, #764ba2);
   color: white;
   border: none;
   padding: 12px 24px;
@@ -500,9 +509,9 @@ body {
 }
 
 .quick-upload-btn:hover:not(:disabled) {
-  background: linear-gradient(45deg, #218838, #1e7e6a);
+  background: linear-gradient(45deg, #5a67d8, #6b46c1);
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
 }
 
 .quick-upload-btn:disabled {

@@ -171,35 +171,36 @@ class DamnPicturesRouter {
     }
   }
 
-  // FIXED: Better Google Drive URL handling
-  getOptimizedImageUrl(photo) {
-    if (!photo.drive_file_id) {
-      // Fallback to Supabase storage
-      if (photo.file_path) {
-        const { data } = supabase.storage
-          .from('photos')
-          .getPublicUrl(photo.file_path)
-        return data.publicUrl
-      }
-      return photo.file_url || null
+  // Update these functions in your router.js
+
+// FIXED: Use the original working URL format
+getOptimizedImageUrl(photo) {
+  if (!photo.drive_file_id) {
+    // Fallback to Supabase storage
+    if (photo.file_path) {
+      const { data } = supabase.storage
+        .from('photos')
+        .getPublicUrl(photo.file_path)
+      return data.publicUrl
     }
-
-    // For Google Drive, use the most reliable format
-    // This format works best for public images
-    return `https://lh3.googleusercontent.com/d/${photo.drive_file_id}=w2000-h2000-rw`
+    return photo.file_url || null
   }
 
-  // FIXED: Better fallback URL generation
-  getBackupImageUrls(photo) {
-    if (!photo.drive_file_id) return []
-    
-    return [
-      `https://drive.google.com/uc?export=view&id=${photo.drive_file_id}`,
-      `https://drive.google.com/thumbnail?id=${photo.drive_file_id}&sz=w2000`,
-      `https://lh3.googleusercontent.com/d/${photo.drive_file_id}`,
-      `https://drive.google.com/file/d/${photo.drive_file_id}/view`
-    ]
-  }
+  // For Google Drive, use the ORIGINAL working format
+  return `https://lh3.googleusercontent.com/d/${photo.drive_file_id}=w2000-h2000-rw`
+}
+
+// FIXED: Use the original working fallback URLs
+getBackupImageUrls(photo) {
+  if (!photo.drive_file_id) return []
+  
+  return [
+    `https://drive.google.com/uc?export=view&id=${photo.drive_file_id}`,
+    `https://lh3.googleusercontent.com/d/${photo.drive_file_id}=w2000`,
+    `https://lh3.googleusercontent.com/d/${photo.drive_file_id}`,
+    `https://drive.google.com/file/d/${photo.drive_file_id}/view`
+  ]
+}
 
   populateGallery(photos) {
     const gallery = document.getElementById('gallery')
