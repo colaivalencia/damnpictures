@@ -274,9 +274,9 @@ async function uploadToGoogleDrive({ fileData, filename, mimeType, parentFolderI
 // Make file publicly accessible with proper error handling
 async function makeFilePublic(fileId, accessToken) {
   try {
-    console.log(`Making file ${fileId} public...`);
+    console.log(`Setting permissions for file ${fileId}...`);
     
-    // First, try to set the file as publicly readable
+    // Method 1: Set anyone can view permission
     const permissionResponse = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}/permissions`, {
       method: 'POST',
       headers: {
@@ -289,15 +289,15 @@ async function makeFilePublic(fileId, accessToken) {
       })
     });
 
+    const permissionResult = await permissionResponse.text();
+    console.log('Permission response:', permissionResponse.status, permissionResult);
+
     if (!permissionResponse.ok) {
-      const errorText = await permissionResponse.text();
-      console.error('Permission error:', errorText);
-      throw new Error(`Failed to make file public: ${permissionResponse.status} - ${errorText}`);
+      console.error('Permission setting failed:', permissionResult);
+      throw new Error(`Permission failed: ${permissionResponse.status} - ${permissionResult}`);
     }
 
-    console.log('File permissions set successfully');
-
-    // Also update the file to be publicly viewable
+    // Method 2: Also try to update file metadata to make it shareable
     const updateResponse = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}`, {
       method: 'PATCH',
       headers: {
@@ -305,18 +305,41 @@ async function makeFilePublic(fileId, accessToken) {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        viewersCanCopyContent: true
+        copyRequiresWriterPermission: false,
+        writersCanShare: true
       })
     });
 
-    if (!updateResponse.ok) {
-      console.warn('Failed to update file settings, but permissions were set');
+    if (updateResponse.ok) {
+      console.log('File metadata updated successfully');
+    } else {
+      console.warn('File metadata update failed, but permissions might still work');
     }
 
-    console.log('File made public successfully');
+    // Method 3: Verify the permission was set
+    const checkResponse = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}/permissions`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`
+      }
+    });
+
+    if (checkResponse.ok) {
+      const permissions = await checkResponse.json();
+      console.log('Current permissions:', permissions);
+      
+      // Check if we have the 'anyone' permission
+      const hasPublicPermission = permissions.permissions?.some(p => p.type === 'anyone');
+      if (!hasPublicPermission) {
+        throw new Error('Public permission not found after setting');
+      }
+    }
+
+    console.log('✅ File permissions set successfully');
     return true;
+
   } catch (error) {
-    console.error('Error making file public:', error);
+    console.error('❌ Error setting file permissions:', error);
     throw error;
   }
 }
