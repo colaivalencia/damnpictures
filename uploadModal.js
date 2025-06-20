@@ -24,7 +24,31 @@ class ImageUploadManager {
     this.createConfirmationModal();
   }
 
-  createConfirmationModal() {
+  // FIXED: Setup listener for when upload modal opens
+  setupModalOpenListener() {
+    const uploadModal = document.getElementById('uploadModal');
+    if (uploadModal) {
+      // Use MutationObserver to detect when modal becomes visible
+      const observer = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+          if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+            const modal = mutation.target;
+            if (!modal.classList.contains('hidden') && window.isLoggedIn()) {
+              console.log('🎯 Upload modal opened, loading photos...');
+              this.loadUserPhotos();
+            }
+          }
+        });
+      });
+      
+      observer.observe(uploadModal, {
+        attributes: true,
+        attributeFilter: ['class']
+      });
+      
+      console.log('📋 Modal open listener setup complete');
+    }
+  }
     // Create upload confirmation modal if it doesn't exist
     if (document.getElementById('uploadConfirmModal')) return;
 
