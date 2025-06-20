@@ -330,7 +330,7 @@ document.addEventListener('DOMContentLoaded', function() {
     try {
       const { data: photos, error } = await supabase
         .from('photos')
-        .select('id, filename, original_name, file_url, file_path, drive_file_id, storage_type, created_at')
+        .select('id, filename, original_name, file_url, file_path, drive_file_id, created_at')
         .eq('user_id', userProfile.id)
         .order('created_at', { ascending: false });
 
@@ -401,7 +401,7 @@ document.addEventListener('DOMContentLoaded', function() {
                this.style.display='none'; 
              }">
         <div class="photo-overlay">
-          <button class="delete-btn" onclick="deletePhoto('${photo.id}', '${deleteId}', '${photo.storage_type || 'googledrive'}')" title="Delete photo">
+          <button class="delete-btn" onclick="deletePhoto('${photo.id}', '${deleteId}')" title="Delete photo">
             ×
           </button>
         </div>
@@ -449,15 +449,15 @@ document.addEventListener('DOMContentLoaded', function() {
 }); // ← This closing brace and parenthesis was missing!
 
 // ===== DELETE PHOTO (GOOGLE DRIVE COMPATIBLE) =====
-window.deletePhoto = async function(photoId, fileId, storageType = 'googledrive') {
-  console.log('Deleting photo:', photoId, 'from', storageType);
+window.deletePhoto = async function(photoId, fileId) {
+  console.log('Deleting photo:', photoId, 'from Google Drive');
   
   if (!confirm('Are you sure you want to delete this photo?')) {
     return;
   }
 
   try {
-    const result = await supabaseHelpers.deletePhoto(photoId, fileId, storageType);
+    const result = await supabaseHelpers.deletePhoto(photoId, fileId);
     
     if (result.error) {
       alert('Failed to delete photo. Please try again.');
