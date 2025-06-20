@@ -606,52 +606,12 @@ class ImageUploadManager {
       return;
     }
 
-    // Clear selected photos when reloading
-    this.selectedPhotos.clear();
-
-    // Create bulk actions header
-    const bulkActionsHtml = `
-      <div class="bulk-actions" style="grid-column: 1 / -1; margin-bottom: 16px;">
-        <div style="display: flex; align-items: center; gap: 12px; padding: 12px; background: #222; border-radius: 8px;">
-          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-            <input type="checkbox" id="selectAllPhotos" style="margin: 0;" />
-            <span style="color: #ccc; font-size: 14px;">Select All</span>
-          </label>
-          <div class="bulk-controls" style="display: flex; align-items: center; gap: 8px;">
-            <span id="selectedCount" style="color: #999; font-size: 14px;">0 selected</span>
-            <button id="deleteSelectedBtn" class="delete-selected-btn" style="
-              background: #ff4757; 
-              color: white; 
-              border: none; 
-              padding: 6px 12px; 
-              border-radius: 6px; 
-              font-size: 12px; 
-              cursor: pointer;
-              opacity: 0.5;
-              pointer-events: none;
-            " disabled>Delete Selected</button>
-          </div>
-        </div>
-      </div>
-    `;
-
-    this.photoList.innerHTML = bulkActionsHtml + photos.map(photo => {
-      const imageUrl = this.getThumbnailUrl(photo); // FIXED: Using thumbnail format
+    // Simple version without bulk actions - just like the original
+    this.photoList.innerHTML = photos.map(photo => {
+      const imageUrl = this.getOptimizedImageUrl(photo); // Use the working URL function
       
       return `
         <div class="photo-item" data-photo-id="${photo.id}">
-          <div class="photo-checkbox" style="
-            position: absolute;
-            top: 8px;
-            left: 8px;
-            z-index: 10;
-          ">
-            <input type="checkbox" class="photo-select" data-photo-id="${photo.id}" data-drive-id="${photo.drive_file_id}" style="
-              width: 18px;
-              height: 18px;
-              cursor: pointer;
-            " />
-          </div>
           <img src="${imageUrl}" alt="${photo.original_name}" loading="lazy" 
                onerror="uploadManager.handleImageError(this, '${photo.drive_file_id}')" />
           <div class="photo-overlay">
@@ -662,9 +622,6 @@ class ImageUploadManager {
         </div>
       `;
     }).join('');
-
-    // Setup bulk selection event listeners
-    this.setupBulkSelectionListeners();
   }
 
   setupBulkSelectionListeners() {
@@ -780,14 +737,12 @@ class ImageUploadManager {
     await this.loadUserPhotos();
   }
 
-  // FIXED: Use the original working URL format for photo manager
-  getThumbnailUrl(photo) {
-    if (!photo.drive_file_id) {
-      return photo.file_url || '/placeholder-image.jpg';
+  // Use the ORIGINAL working URL function
+  getOptimizedImageUrl(photo) {
+    if (photo.drive_file_id) {
+      return `https://lh3.googleusercontent.com/d/${photo.drive_file_id}=w400-h400-c`;
     }
-
-    // Use the ORIGINAL working format that was working before
-    return `https://lh3.googleusercontent.com/d/${photo.drive_file_id}=w400-h400-c`;
+    return photo.file_url;
   }
 
   // FIXED: Use the original working fallback URLs
