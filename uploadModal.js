@@ -1,10 +1,12 @@
-// Fixed uploadModal.js with proper file size validation and image compression
+// Fixed uploadModal.js with upload confirmation and optimized thumbnails
 
 class ImageUploadManager {
   constructor() {
     this.maxFileSize = 2 * 1024 * 1024; // 2MB in bytes
     this.compressionQuality = 0.8; // Start with 80% quality
     this.maxDimension = 2048; // Max width/height for compression
+    this.selectedPhotos = new Set(); // Track selected photos for bulk delete
+    this.pendingFiles = []; // Files ready for upload confirmation
     this.init();
   }
 
@@ -19,18 +21,70 @@ class ImageUploadManager {
 
     this.setupEventListeners();
     this.loadUserPhotos();
+    this.createConfirmationModal();
+  }
+
+  createConfirmationModal() {
+    // Create upload confirmation modal if it doesn't exist
+    if (document.getElementById('uploadConfirmModal')) return;
+
+    const confirmModal = document.createElement('div');
+    confirmModal.id = 'uploadConfirmModal';
+    confirmModal.className = 'modal hidden';
+    confirmModal.innerHTML = `
+      <div class="modal-content" style="width: min(90vw, 700px); max-height: 80vh;">
+        <div class="modal-header">
+          <h2 class="modal-title">Confirm Upload</h2>
+          <button class="close-btn" id="closeConfirmModal">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div style="margin-bottom: 16px;">
+            <p style="color: #ccc; margin: 0;">Review your photos before uploading. Click on any photo to remove it.</p>
+          </div>
+          <div id="confirmPhotoGrid" class="photos-grid" style="max-height: 400px; overflow-y: auto;">
+            <!-- Preview photos will be inserted here -->
+          </div>
+          <div style="display: flex; gap: 12px; margin-top: 24px;">
+            <button id="cancelUploadBtn" class="secondary-btn" style="flex: 1;">Cancel</button>
+            <button id="proceedUploadBtn" class="primary-btn" style="flex: 2;">Upload Photos</button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(confirmModal);
+
+    // Setup event listeners for confirmation modal
+    document.getElementById('closeConfirmModal').addEventListener('click', () => {
+      this.hideConfirmationModal();
+    });
+
+    document.getElementById('cancelUploadBtn').addEventListener('click', () => {
+      this.cancelUpload();
+    });
+
+    document.getElementById('proceedUploadBtn').addEventListener('click', () => {
+      this.proceedWithUpload();
+    });
+
+    // Close on escape key
+    confirmModal.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        this.hideConfirmationModal();
+      }
+    });
   }
 
   setupEventListeners() {
-    // File input change
+    // File input change - FIXED: Only one event listener
     this.fileInput.addEventListener('change', (e) => {
       this.handleFiles(e.target.files);
     });
 
-    // Upload button click
+    // Upload button click - Show confirmation instead of immediate upload
     this.uploadBtn.addEventListener('click', () => {
       if (this.fileInput.files.length > 0) {
-        this.uploadFiles();
+        this.showUploadConfirmation();
       } else {
         this.fileInput.click();
       }
@@ -38,11 +92,6 @@ class ImageUploadManager {
 
     // Drag and drop
     this.setupDragAndDrop();
-
-    // Update button state when files selected
-    this.fileInput.addEventListener('change', () => {
-      this.updateUploadButton();
-    });
   }
 
   setupDragAndDrop() {
@@ -127,14 +176,12 @@ class ImageUploadManager {
     }
 
     if (validFiles.length > 0) {
-      // Update file input with valid files
-      const dt = new DataTransfer();
-      validFiles.forEach(file => dt.items.add(file));
-      this.fileInput.files = dt.files;
-      
+      // Store validated files for confirmation
+      this.pendingFiles = validFiles;
       this.updateUploadButton();
       this.showFilePreview(validFiles);
     } else {
+      this.pendingFiles = [];
       this.updateUploadButton();
     }
   }
@@ -227,10 +274,10 @@ class ImageUploadManager {
   }
 
   updateUploadButton() {
-    const fileCount = this.fileInput.files.length;
+    const fileCount = this.pendingFiles.length;
     
     if (fileCount > 0) {
-      this.uploadBtn.textContent = `Upload ${fileCount} Photo${fileCount > 1 ? 's' : ''}`;
+      this.uploadBtn.textContent = `Review ${fileCount} Photo${fileCount > 1 ? 's' : ''}`;
       this.uploadBtn.disabled = false;
       this.uploadBtn.style.background = 'linear-gradient(45deg, #667eea, #764ba2)';
     } else {
@@ -238,6 +285,137 @@ class ImageUploadManager {
       this.uploadBtn.disabled = true;
       this.uploadBtn.style.background = '#555';
     }
+  }
+
+  // NEW: Show upload confirmation modal
+  async showUploadConfirmation() {
+    if (this.pendingFiles.length === 0) return;
+
+    const confirmModal = document.getElementById('uploadConfirmModal');
+    const photoGrid = document.getElementById('confirmPhotoGrid');
+    const proceedBtn = document.getElementById('proceedUploadBtn');
+
+    // Update proceed button text
+    proceedBtn.textContent = `Upload ${this.pendingFiles.length} Photo${this.pendingFiles.length > 1 ? 's' : ''}`;
+
+    // Generate previews for each file
+    photoGrid.innerHTML = '';
+    
+    for (let i = 0; i < this.pendingFiles.length; i++) {
+      const file = this.pendingFiles[i];
+      const preview = await this.createFilePreview(file, i);
+      photoGrid.appendChild(preview);
+    }
+
+    confirmModal.classList.remove('hidden');
+  }
+
+  // NEW: Create preview element for file
+  createFilePreview(file, index) {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const preview = document.createElement('div');
+        preview.className = 'preview-item';
+        preview.dataset.index = index;
+        preview.innerHTML = `
+          <div style="
+            position: relative;
+            aspect-ratio: 1;
+            border-radius: 8px;
+            overflow: hidden;
+            background: #333;
+            cursor: pointer;
+            transition: all 0.2s ease;
+          " onclick="uploadManager.removeFileFromUpload(${index})">
+            <img src="${e.target.result}" alt="${file.name}" style="
+              width: 100%;
+              height: 100%;
+              object-fit: cover;
+            " />
+            <div style="
+              position: absolute;
+              top: 8px;
+              right: 8px;
+              background: rgba(255, 71, 87, 0.9);
+              color: white;
+              border-radius: 50%;
+              width: 24px;
+              height: 24px;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              font-size: 16px;
+              font-weight: bold;
+              opacity: 0;
+              transition: all 0.2s ease;
+            " class="remove-icon">×</div>
+            <div style="
+              position: absolute;
+              bottom: 0;
+              left: 0;
+              right: 0;
+              background: linear-gradient(transparent, rgba(0,0,0,0.8));
+              color: white;
+              padding: 8px;
+              font-size: 12px;
+              text-align: center;
+              white-space: nowrap;
+              overflow: hidden;
+              text-overflow: ellipsis;
+            ">${file.name}</div>
+          </div>
+        `;
+
+        // Add hover effects
+        const previewElement = preview.firstElementChild;
+        previewElement.addEventListener('mouseenter', () => {
+          previewElement.style.transform = 'scale(1.05)';
+          previewElement.querySelector('.remove-icon').style.opacity = '1';
+        });
+        previewElement.addEventListener('mouseleave', () => {
+          previewElement.style.transform = 'scale(1)';
+          previewElement.querySelector('.remove-icon').style.opacity = '0';
+        });
+
+        resolve(preview);
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  // NEW: Remove file from upload queue
+  removeFileFromUpload(index) {
+    this.pendingFiles.splice(index, 1);
+    
+    // Update the confirmation modal
+    if (this.pendingFiles.length > 0) {
+      this.showUploadConfirmation();
+    } else {
+      this.hideConfirmationModal();
+      this.resetUploadSection();
+    }
+  }
+
+  // NEW: Hide confirmation modal
+  hideConfirmationModal() {
+    const confirmModal = document.getElementById('uploadConfirmModal');
+    confirmModal.classList.add('hidden');
+  }
+
+  // NEW: Cancel upload completely
+  cancelUpload() {
+    this.pendingFiles = [];
+    this.fileInput.value = '';
+    this.hideConfirmationModal();
+    this.resetUploadSection();
+    this.updateUploadButton();
+  }
+
+  // NEW: Proceed with upload after confirmation
+  async proceedWithUpload() {
+    this.hideConfirmationModal();
+    await this.uploadFiles();
   }
 
   async uploadFiles() {
@@ -252,7 +430,7 @@ class ImageUploadManager {
       return;
     }
 
-    const files = Array.from(this.fileInput.files);
+    const files = this.pendingFiles;
     if (files.length === 0) return;
 
     console.log(`Starting upload of ${files.length} files for user: ${userProfile.username}`);
@@ -326,7 +504,8 @@ class ImageUploadManager {
       const failedNames = results.failed.map(f => f.file).join(', ');
       alert(`Failed to upload: ${failedNames}`);
     } else {
-      // Clear the file input and reset preview
+      // Clear everything on success
+      this.pendingFiles = [];
       this.fileInput.value = '';
       this.resetUploadSection();
     }
@@ -343,7 +522,7 @@ class ImageUploadManager {
       uploadText.textContent = 'Drop your photos here or click to browse';
     }
     if (uploadSubtext) {
-      uploadSubtext.textContent = 'Supports JPG, PNG, GIF up to 2MB (auto-compressed)';
+      uploadSubtext.textContent = 'Supports JPG, PNG, GIF • Auto-compressed to 2MB • Any size accepted';
     }
   }
 
@@ -390,12 +569,54 @@ class ImageUploadManager {
       return;
     }
 
-    this.photoList.innerHTML = photos.map(photo => {
-      const imageUrl = this.getOptimizedImageUrl(photo);
+    // Clear selected photos when reloading
+    this.selectedPhotos.clear();
+
+    // Create bulk actions header
+    const bulkActionsHtml = `
+      <div class="bulk-actions" style="grid-column: 1 / -1; margin-bottom: 16px;">
+        <div style="display: flex; align-items: center; gap: 12px; padding: 12px; background: #222; border-radius: 8px;">
+          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+            <input type="checkbox" id="selectAllPhotos" style="margin: 0;" />
+            <span style="color: #ccc; font-size: 14px;">Select All</span>
+          </label>
+          <div class="bulk-controls" style="display: flex; align-items: center; gap: 8px;">
+            <span id="selectedCount" style="color: #999; font-size: 14px;">0 selected</span>
+            <button id="deleteSelectedBtn" class="delete-selected-btn" style="
+              background: #ff4757; 
+              color: white; 
+              border: none; 
+              padding: 6px 12px; 
+              border-radius: 6px; 
+              font-size: 12px; 
+              cursor: pointer;
+              opacity: 0.5;
+              pointer-events: none;
+            " disabled>Delete Selected</button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    this.photoList.innerHTML = bulkActionsHtml + photos.map(photo => {
+      const imageUrl = this.getThumbnailUrl(photo); // FIXED: Using thumbnail format
       
       return `
         <div class="photo-item" data-photo-id="${photo.id}">
-          <img src="${imageUrl}" alt="${photo.original_name}" loading="lazy" />
+          <div class="photo-checkbox" style="
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            z-index: 10;
+          ">
+            <input type="checkbox" class="photo-select" data-photo-id="${photo.id}" data-drive-id="${photo.drive_file_id}" style="
+              width: 18px;
+              height: 18px;
+              cursor: pointer;
+            " />
+          </div>
+          <img src="${imageUrl}" alt="${photo.original_name}" loading="lazy" 
+               onerror="uploadManager.handleImageError(this, '${photo.drive_file_id}')" />
           <div class="photo-overlay">
             <button class="delete-btn" onclick="uploadManager.deletePhoto('${photo.id}', '${photo.drive_file_id}')">
               ×
@@ -404,13 +625,173 @@ class ImageUploadManager {
         </div>
       `;
     }).join('');
+
+    // Setup bulk selection event listeners
+    this.setupBulkSelectionListeners();
   }
 
-  getOptimizedImageUrl(photo) {
-    if (photo.drive_file_id) {
-      return `https://lh3.googleusercontent.com/d/${photo.drive_file_id}=w400-h400-c`;
+  setupBulkSelectionListeners() {
+    const selectAllCheckbox = document.getElementById('selectAllPhotos');
+    const deleteSelectedBtn = document.getElementById('deleteSelectedBtn');
+    const selectedCountSpan = document.getElementById('selectedCount');
+    const photoCheckboxes = document.querySelectorAll('.photo-select');
+
+    // Select all/none functionality
+    selectAllCheckbox?.addEventListener('change', (e) => {
+      const isChecked = e.target.checked;
+      photoCheckboxes.forEach(checkbox => {
+        checkbox.checked = isChecked;
+        if (isChecked) {
+          this.selectedPhotos.add(checkbox.dataset.photoId);
+        } else {
+          this.selectedPhotos.delete(checkbox.dataset.photoId);
+        }
+      });
+      this.updateBulkControls();
+    });
+
+    // Individual photo selection
+    photoCheckboxes.forEach(checkbox => {
+      checkbox.addEventListener('change', (e) => {
+        const photoId = e.target.dataset.photoId;
+        if (e.target.checked) {
+          this.selectedPhotos.add(photoId);
+        } else {
+          this.selectedPhotos.delete(photoId);
+          selectAllCheckbox.checked = false;
+        }
+        this.updateBulkControls();
+      });
+    });
+
+    // Delete selected photos
+    deleteSelectedBtn?.addEventListener('click', () => {
+      this.deleteSelectedPhotos();
+    });
+  }
+
+  updateBulkControls() {
+    const selectedCountSpan = document.getElementById('selectedCount');
+    const deleteSelectedBtn = document.getElementById('deleteSelectedBtn');
+    const count = this.selectedPhotos.size;
+
+    if (selectedCountSpan) {
+      selectedCountSpan.textContent = `${count} selected`;
     }
-    return photo.file_url;
+
+    if (deleteSelectedBtn) {
+      if (count > 0) {
+        deleteSelectedBtn.disabled = false;
+        deleteSelectedBtn.style.opacity = '1';
+        deleteSelectedBtn.style.pointerEvents = 'auto';
+        deleteSelectedBtn.textContent = `Delete ${count} Photo${count > 1 ? 's' : ''}`;
+      } else {
+        deleteSelectedBtn.disabled = true;
+        deleteSelectedBtn.style.opacity = '0.5';
+        deleteSelectedBtn.style.pointerEvents = 'none';
+        deleteSelectedBtn.textContent = 'Delete Selected';
+      }
+    }
+  }
+
+  async deleteSelectedPhotos() {
+    if (this.selectedPhotos.size === 0) return;
+
+    const count = this.selectedPhotos.size;
+    if (!confirm(`Are you sure you want to delete ${count} photo${count > 1 ? 's' : ''}?`)) {
+      return;
+    }
+
+    const deleteSelectedBtn = document.getElementById('deleteSelectedBtn');
+    if (deleteSelectedBtn) {
+      deleteSelectedBtn.disabled = true;
+      deleteSelectedBtn.textContent = 'Deleting...';
+    }
+
+    const selectedPhotoIds = Array.from(this.selectedPhotos);
+    const results = { successful: 0, failed: 0 };
+
+    for (const photoId of selectedPhotoIds) {
+      try {
+        const checkbox = document.querySelector(`[data-photo-id="${photoId}"]`);
+        const driveFileId = checkbox?.dataset.driveId;
+
+        const { error } = await supabaseHelpers.deletePhoto(photoId, driveFileId);
+        
+        if (error) {
+          console.error(`Delete failed for photo ${photoId}:`, error);
+          results.failed++;
+        } else {
+          console.log(`✅ Deleted photo ${photoId}`);
+          results.successful++;
+        }
+      } catch (error) {
+        console.error(`Error deleting photo ${photoId}:`, error);
+        results.failed++;
+      }
+    }
+
+    // Show results
+    if (results.failed > 0) {
+      alert(`Deleted ${results.successful} photos. ${results.failed} failed to delete.`);
+    } else {
+      console.log(`✅ Successfully deleted ${results.successful} photos`);
+    }
+
+    // Clear selection and reload photos
+    this.selectedPhotos.clear();
+    await this.loadUserPhotos();
+  }
+
+  // FIXED: Optimized thumbnail URL for photo manager (faster loading)
+  getThumbnailUrl(photo) {
+    if (!photo.drive_file_id) {
+      return photo.file_url || '/placeholder-image.jpg';
+    }
+
+    // Use smaller thumbnail for photo manager (faster loading, less bandwidth)
+    return `https://drive.google.com/thumbnail?id=${photo.drive_file_id}&sz=w200`;
+  }
+
+  // FIXED: Handle image loading errors with multiple fallback URLs
+  handleImageError(imgElement, driveFileId) {
+    console.log(`Image failed to load for drive ID: ${driveFileId}`);
+    
+    // Try different Google Drive URL formats as fallbacks
+    const fallbackUrls = [
+      `https://lh3.googleusercontent.com/d/${driveFileId}=w200-h200-c`,
+      `https://drive.google.com/uc?export=view&id=${driveFileId}`,
+      `https://lh3.googleusercontent.com/d/${driveFileId}`,
+      `https://drive.google.com/file/d/${driveFileId}/view`
+    ];
+
+    const currentSrc = imgElement.src;
+    const nextFallback = fallbackUrls.find(url => url !== currentSrc);
+
+    if (nextFallback) {
+      console.log(`Trying fallback URL: ${nextFallback}`);
+      imgElement.src = nextFallback;
+    } else {
+      console.log('All fallbacks failed, showing placeholder');
+      // Show a placeholder when all URLs fail
+      imgElement.style.display = 'none';
+      imgElement.parentElement.innerHTML = `
+        <div style="
+          width: 100%;
+          height: 100%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: #333;
+          color: #666;
+          flex-direction: column;
+          gap: 8px;
+        ">
+          <div style="font-size: 2rem;">📷</div>
+          <div style="font-size: 0.8rem;">Image unavailable</div>
+        </div>
+      `;
+    }
   }
 
   async deletePhoto(photoId, driveFileId) {
@@ -436,6 +817,9 @@ class ImageUploadManager {
       if (photoElement) {
         photoElement.remove();
       }
+
+      // Remove from selected photos if it was selected
+      this.selectedPhotos.delete(photoId);
 
       // Reload photos to update the list
       await this.loadUserPhotos();
