@@ -1,4 +1,4 @@
-// Fixed uploadModal.js with upload confirmation and optimized thumbnails
+// Clean uploadModal.js with proper structure
 
 class ImageUploadManager {
   constructor() {
@@ -20,11 +20,13 @@ class ImageUploadManager {
     this.photoList = document.getElementById('photoList');
 
     this.setupEventListeners();
-    this.loadUserPhotos();
     this.createConfirmationModal();
+    this.setupModalOpenListener();
+    
+    // Load photos when initialized
+    this.loadUserPhotos();
   }
 
-  // FIXED: Setup listener for when upload modal opens
   setupModalOpenListener() {
     const uploadModal = document.getElementById('uploadModal');
     if (uploadModal) {
@@ -49,6 +51,8 @@ class ImageUploadManager {
       console.log('📋 Modal open listener setup complete');
     }
   }
+
+  createConfirmationModal() {
     // Create upload confirmation modal if it doesn't exist
     if (document.getElementById('uploadConfirmModal')) return;
 
@@ -100,14 +104,15 @@ class ImageUploadManager {
   }
 
   setupEventListeners() {
-    // File input change - FIXED: Only one event listener
+    // File input change
     this.fileInput.addEventListener('change', (e) => {
       this.handleFiles(e.target.files);
+      this.updateUploadButton();
     });
 
-    // Upload button click - Show confirmation instead of immediate upload
+    // Upload button click - Show confirmation
     this.uploadBtn.addEventListener('click', () => {
-      if (this.fileInput.files.length > 0) {
+      if (this.pendingFiles.length > 0) {
         this.showUploadConfirmation();
       } else {
         this.fileInput.click();
@@ -159,7 +164,6 @@ class ImageUploadManager {
       alert(`${fileArray.length - imageFiles.length} non-image files were ignored`);
     }
 
-    // Validate and show file info
     this.validateAndDisplayFiles(imageFiles);
   }
 
@@ -170,10 +174,7 @@ class ImageUploadManager {
     const oversizedFiles = [];
     
     for (const file of files) {
-      console.log(`Checking file: ${file.name} (${this.formatFileSize(file.size)})`);
-      
       if (file.size > this.maxFileSize) {
-        console.log(`File ${file.name} is too large, will compress`);
         try {
           const compressedFile = await this.compressImage(file);
           if (compressedFile.size <= this.maxFileSize) {
@@ -181,7 +182,6 @@ class ImageUploadManager {
             console.log(`✅ Compressed ${file.name} from ${this.formatFileSize(file.size)} to ${this.formatFileSize(compressedFile.size)}`);
           } else {
             oversizedFiles.push(file);
-            console.log(`❌ Could not compress ${file.name} enough`);
           }
         } catch (error) {
           console.error(`Compression failed for ${file.name}:`, error);
@@ -189,18 +189,15 @@ class ImageUploadManager {
         }
       } else {
         validFiles.push(file);
-        console.log(`✅ File ${file.name} is acceptable size`);
       }
     }
 
-    // Show results
     if (oversizedFiles.length > 0) {
       const oversizedNames = oversizedFiles.map(f => f.name).join(', ');
       alert(`These files are too large and couldn't be compressed enough: ${oversizedNames}`);
     }
 
     if (validFiles.length > 0) {
-      // Store validated files for confirmation
       this.pendingFiles = validFiles;
       this.updateUploadButton();
       this.showFilePreview(validFiles);
@@ -218,18 +215,11 @@ class ImageUploadManager {
       
       img.onload = () => {
         try {
-          // Calculate new dimensions
           let { width, height } = this.calculateDimensions(img.width, img.height);
-          
           canvas.width = width;
           canvas.height = height;
-          
-          // Draw and compress
           ctx.drawImage(img, 0, 0, width, height);
-          
-          // Try different quality levels until under 2MB
           this.compressWithQuality(canvas, file, resolve, reject);
-          
         } catch (error) {
           reject(error);
         }
@@ -247,14 +237,11 @@ class ImageUploadManager {
         return;
       }
 
-      // If still too large and quality can be reduced further
       if (blob.size > this.maxFileSize && quality > 0.1) {
-        console.log(`Still ${this.formatFileSize(blob.size)}, reducing quality to ${Math.round((quality - 0.1) * 100)}%`);
         this.compressWithQuality(canvas, originalFile, resolve, reject, quality - 0.1);
         return;
       }
 
-      // Create file with compressed data
       const compressedFile = new File([blob], originalFile.name, {
         type: originalFile.type,
         lastModified: Date.now()
@@ -305,7 +292,9 @@ class ImageUploadManager {
       // Show both Review and Quick Upload buttons
       this.uploadBtn.textContent = `Review ${fileCount} Photo${fileCount > 1 ? 's' : ''}`;
       this.uploadBtn.disabled = false;
-      this.uploadBtn.style.background = 'linear-gradient(45deg, #667eea, #764ba2)';
+      this.uploadBtn.style.background = 'transparent';
+      this.uploadBtn.style.border = '2px solid #667eea';
+      this.uploadBtn.style.color = '#667eea';
       
       // Create or update quick upload button
       let quickUploadBtn = document.getElementById('quickUploadBtn');
@@ -324,10 +313,12 @@ class ImageUploadManager {
       quickUploadBtn.style.display = 'block';
       
     } else {
-      // Hide quick upload button and reset main button
+      // Reset to default state
       this.uploadBtn.textContent = 'Select Photos';
       this.uploadBtn.disabled = true;
       this.uploadBtn.style.background = '#555';
+      this.uploadBtn.style.border = 'none';
+      this.uploadBtn.style.color = 'white';
       
       const quickUploadBtn = document.getElementById('quickUploadBtn');
       if (quickUploadBtn) {
@@ -336,7 +327,6 @@ class ImageUploadManager {
     }
   }
 
-  // NEW: Show upload confirmation modal
   async showUploadConfirmation() {
     if (this.pendingFiles.length === 0) return;
 
@@ -344,10 +334,8 @@ class ImageUploadManager {
     const photoGrid = document.getElementById('confirmPhotoGrid');
     const proceedBtn = document.getElementById('proceedUploadBtn');
 
-    // Update proceed button text
     proceedBtn.textContent = `Upload ${this.pendingFiles.length} Photo${this.pendingFiles.length > 1 ? 's' : ''}`;
 
-    // Generate previews for each file
     photoGrid.innerHTML = '';
     
     for (let i = 0; i < this.pendingFiles.length; i++) {
@@ -359,7 +347,6 @@ class ImageUploadManager {
     confirmModal.classList.remove('hidden');
   }
 
-  // NEW: Create preview element for file
   createFilePreview(file, index) {
     return new Promise((resolve) => {
       const reader = new FileReader();
@@ -416,7 +403,6 @@ class ImageUploadManager {
           </div>
         `;
 
-        // Add hover effects
         const previewElement = preview.firstElementChild;
         previewElement.addEventListener('mouseenter', () => {
           previewElement.style.transform = 'scale(1.05)';
@@ -433,11 +419,9 @@ class ImageUploadManager {
     });
   }
 
-  // NEW: Remove file from upload queue
   removeFileFromUpload(index) {
     this.pendingFiles.splice(index, 1);
     
-    // Update the confirmation modal
     if (this.pendingFiles.length > 0) {
       this.showUploadConfirmation();
     } else {
@@ -446,13 +430,11 @@ class ImageUploadManager {
     }
   }
 
-  // NEW: Hide confirmation modal
   hideConfirmationModal() {
     const confirmModal = document.getElementById('uploadConfirmModal');
     confirmModal.classList.add('hidden');
   }
 
-  // NEW: Cancel upload completely
   cancelUpload() {
     this.pendingFiles = [];
     this.fileInput.value = '';
@@ -460,14 +442,12 @@ class ImageUploadManager {
     this.resetUploadSection();
     this.updateUploadButton();
     
-    // Hide quick upload button
     const quickUploadBtn = document.getElementById('quickUploadBtn');
     if (quickUploadBtn) {
       quickUploadBtn.style.display = 'none';
     }
   }
 
-  // NEW: Proceed with upload after confirmation
   async proceedWithUpload() {
     this.hideConfirmationModal();
     await this.uploadFiles();
@@ -488,16 +468,11 @@ class ImageUploadManager {
     const files = this.pendingFiles;
     if (files.length === 0) return;
 
-    console.log(`Starting upload of ${files.length} files for user: ${userProfile.username}`);
-
     this.uploadBtn.disabled = true;
     this.uploadBtn.textContent = 'Uploading...';
     this.showProgress(true);
 
-    const results = {
-      successful: [],
-      failed: []
-    };
+    const results = { successful: [], failed: [] };
 
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
@@ -507,18 +482,13 @@ class ImageUploadManager {
       this.uploadBtn.textContent = `Uploading... (${i + 1}/${files.length})`;
 
       try {
-        console.log(`Uploading file ${i + 1}/${files.length}: ${file.name} (${this.formatFileSize(file.size)})`);
-
-        // Upload to Google Drive via Netlify Function
         const uploadResult = await supabaseHelpers.uploadPhoto(file, userProfile.username);
         
         if (uploadResult.error) {
-          console.error(`Upload failed for ${file.name}:`, uploadResult.error);
           results.failed.push({ file: file.name, error: uploadResult.error });
           continue;
         }
 
-        // Save metadata to database
         const photoData = {
           username: userProfile.username,
           filename: `${Date.now()}_${file.name}`,
@@ -531,47 +501,34 @@ class ImageUploadManager {
         const metadataResult = await supabaseHelpers.savePhotoMetadata(photoData, userProfile);
         
         if (metadataResult.error) {
-          console.error(`Metadata save failed for ${file.name}:`, metadataResult.error);
           results.failed.push({ file: file.name, error: metadataResult.error.message });
         } else {
-          console.log(`✅ Successfully uploaded: ${file.name}`);
           results.successful.push(file.name);
         }
 
       } catch (error) {
-        console.error(`Unexpected error uploading ${file.name}:`, error);
         results.failed.push({ file: file.name, error: error.message });
       }
     }
 
-    // Upload complete
     this.showProgress(false);
     this.uploadBtn.disabled = false;
     this.updateUploadButton();
 
-    // Show results
-    if (results.successful.length > 0) {
-      console.log(`✅ Successfully uploaded ${results.successful.length} photos`);
-    }
-
     if (results.failed.length > 0) {
-      console.error(`❌ Failed to upload ${results.failed.length} photos:`, results.failed);
       const failedNames = results.failed.map(f => f.file).join(', ');
       alert(`Failed to upload: ${failedNames}`);
     } else {
-      // Clear everything on success
       this.pendingFiles = [];
       this.fileInput.value = '';
       this.resetUploadSection();
       
-      // Hide quick upload button
       const quickUploadBtn = document.getElementById('quickUploadBtn');
       if (quickUploadBtn) {
         quickUploadBtn.style.display = 'none';
       }
     }
 
-    // Refresh the photo list
     await this.loadUserPhotos();
   }
 
@@ -659,7 +616,6 @@ class ImageUploadManager {
 
     console.log('🎨 Generating HTML for photos...');
     
-    // Simple version without bulk actions - just like the original
     const photosHtml = photos.map((photo, index) => {
       const imageUrl = this.getOptimizedImageUrl(photo);
       console.log(`Photo ${index + 1}: ${photo.filename} → ${imageUrl}`);
@@ -682,120 +638,6 @@ class ImageUploadManager {
     console.log('✅ displayUserPhotos complete');
   }
 
-  setupBulkSelectionListeners() {
-    const selectAllCheckbox = document.getElementById('selectAllPhotos');
-    const deleteSelectedBtn = document.getElementById('deleteSelectedBtn');
-    const selectedCountSpan = document.getElementById('selectedCount');
-    const photoCheckboxes = document.querySelectorAll('.photo-select');
-
-    // Select all/none functionality
-    selectAllCheckbox?.addEventListener('change', (e) => {
-      const isChecked = e.target.checked;
-      photoCheckboxes.forEach(checkbox => {
-        checkbox.checked = isChecked;
-        if (isChecked) {
-          this.selectedPhotos.add(checkbox.dataset.photoId);
-        } else {
-          this.selectedPhotos.delete(checkbox.dataset.photoId);
-        }
-      });
-      this.updateBulkControls();
-    });
-
-    // Individual photo selection
-    photoCheckboxes.forEach(checkbox => {
-      checkbox.addEventListener('change', (e) => {
-        const photoId = e.target.dataset.photoId;
-        if (e.target.checked) {
-          this.selectedPhotos.add(photoId);
-        } else {
-          this.selectedPhotos.delete(photoId);
-          selectAllCheckbox.checked = false;
-        }
-        this.updateBulkControls();
-      });
-    });
-
-    // Delete selected photos
-    deleteSelectedBtn?.addEventListener('click', () => {
-      this.deleteSelectedPhotos();
-    });
-  }
-
-  updateBulkControls() {
-    const selectedCountSpan = document.getElementById('selectedCount');
-    const deleteSelectedBtn = document.getElementById('deleteSelectedBtn');
-    const count = this.selectedPhotos.size;
-
-    if (selectedCountSpan) {
-      selectedCountSpan.textContent = `${count} selected`;
-    }
-
-    if (deleteSelectedBtn) {
-      if (count > 0) {
-        deleteSelectedBtn.disabled = false;
-        deleteSelectedBtn.style.opacity = '1';
-        deleteSelectedBtn.style.pointerEvents = 'auto';
-        deleteSelectedBtn.textContent = `Delete ${count} Photo${count > 1 ? 's' : ''}`;
-      } else {
-        deleteSelectedBtn.disabled = true;
-        deleteSelectedBtn.style.opacity = '0.5';
-        deleteSelectedBtn.style.pointerEvents = 'none';
-        deleteSelectedBtn.textContent = 'Delete Selected';
-      }
-    }
-  }
-
-  async deleteSelectedPhotos() {
-    if (this.selectedPhotos.size === 0) return;
-
-    const count = this.selectedPhotos.size;
-    if (!confirm(`Are you sure you want to delete ${count} photo${count > 1 ? 's' : ''}?`)) {
-      return;
-    }
-
-    const deleteSelectedBtn = document.getElementById('deleteSelectedBtn');
-    if (deleteSelectedBtn) {
-      deleteSelectedBtn.disabled = true;
-      deleteSelectedBtn.textContent = 'Deleting...';
-    }
-
-    const selectedPhotoIds = Array.from(this.selectedPhotos);
-    const results = { successful: 0, failed: 0 };
-
-    for (const photoId of selectedPhotoIds) {
-      try {
-        const checkbox = document.querySelector(`[data-photo-id="${photoId}"]`);
-        const driveFileId = checkbox?.dataset.driveId;
-
-        const { error } = await supabaseHelpers.deletePhoto(photoId, driveFileId);
-        
-        if (error) {
-          console.error(`Delete failed for photo ${photoId}:`, error);
-          results.failed++;
-        } else {
-          console.log(`✅ Deleted photo ${photoId}`);
-          results.successful++;
-        }
-      } catch (error) {
-        console.error(`Error deleting photo ${photoId}:`, error);
-        results.failed++;
-      }
-    }
-
-    // Show results
-    if (results.failed > 0) {
-      alert(`Deleted ${results.successful} photos. ${results.failed} failed to delete.`);
-    } else {
-      console.log(`✅ Successfully deleted ${results.successful} photos`);
-    }
-
-    // Clear selection and reload photos
-    this.selectedPhotos.clear();
-    await this.loadUserPhotos();
-  }
-
-  // Use the ORIGINAL working URL function
   getOptimizedImageUrl(photo) {
     if (photo.drive_file_id) {
       return `https://lh3.googleusercontent.com/d/${photo.drive_file_id}=w400-h400-c`;
@@ -803,11 +645,9 @@ class ImageUploadManager {
     return photo.file_url;
   }
 
-  // FIXED: Use the original working fallback URLs
   handleImageError(imgElement, driveFileId) {
     console.log(`Image failed to load for drive ID: ${driveFileId}`);
     
-    // Try the ORIGINAL working Google Drive URL formats as fallbacks
     const fallbackUrls = [
       `https://drive.google.com/uc?export=view&id=${driveFileId}`,
       `https://lh3.googleusercontent.com/d/${driveFileId}=w400`,
@@ -822,8 +662,6 @@ class ImageUploadManager {
       console.log(`Trying fallback URL: ${nextFallback}`);
       imgElement.src = nextFallback;
     } else {
-      console.log('All fallbacks failed, showing placeholder');
-      // Show a placeholder when all URLs fail
       imgElement.style.display = 'none';
       imgElement.parentElement.innerHTML = `
         <div style="
@@ -850,28 +688,18 @@ class ImageUploadManager {
     }
 
     try {
-      console.log(`Deleting photo: ${photoId}`);
-      
       const { error } = await supabaseHelpers.deletePhoto(photoId, driveFileId);
       
       if (error) {
-        console.error('Delete error:', error);
         alert('Failed to delete photo. Please try again.');
         return;
       }
 
-      console.log('✅ Photo deleted successfully');
-      
-      // Remove from UI
       const photoElement = document.querySelector(`[data-photo-id="${photoId}"]`);
       if (photoElement) {
         photoElement.remove();
       }
 
-      // Remove from selected photos if it was selected
-      this.selectedPhotos.delete(photoId);
-
-      // Reload photos to update the list
       await this.loadUserPhotos();
       
     } catch (error) {
@@ -897,7 +725,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // Make manager available globally
 window.ImageUploadManager = ImageUploadManager;
 
-// Add manual test function
+// Test function
 window.testPhotoLoad = async function() {
   console.log('🧪 Manual test photo load...');
   if (window.uploadManager) {
