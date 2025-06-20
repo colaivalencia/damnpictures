@@ -173,8 +173,8 @@ async function handleUpload({ fileData, filename, username, mimeType }) {
     // Make file public
     await makeFilePublic(uploadResult.id, access_token);
 
-    // Use direct image URL format that works better for display
-    const publicUrl = `https://drive.google.com/uc?export=view&id=${uploadResult.id}`;
+    // Use the simple direct access format that works best
+    const publicUrl = `https://drive.google.com/uc?id=${uploadResult.id}`;
 
     return {
       statusCode: 200,
@@ -271,17 +271,52 @@ async function uploadToGoogleDrive({ fileData, filename, mimeType, parentFolderI
   return await response.json();
 }
 
-// Make file public
+// Make file publicly accessible with proper error handling
 async function makeFilePublic(fileId, accessToken) {
-  await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}/permissions`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${accessToken}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      role: 'reader',
-      type: 'anyone'
-    })
-  });
+  try {
+    console.log(`Making file ${fileId} public...`);
+    
+    // First, try to set the file as publicly readable
+    const permissionResponse = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}/permissions`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        role: 'reader',
+        type: 'anyone'
+      })
+    });
+
+    if (!permissionResponse.ok) {
+      const errorText = await permissionResponse.text();
+      console.error('Permission error:', errorText);
+      throw new Error(`Failed to make file public: ${permissionResponse.status} - ${errorText}`);
+    }
+
+    console.log('File permissions set successfully');
+
+    // Also update the file to be publicly viewable
+    const updateResponse = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}`, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        viewersCanCopyContent: true
+      })
+    });
+
+    if (!updateResponse.ok) {
+      console.warn('Failed to update file settings, but permissions were set');
+    }
+
+    console.log('File made public successfully');
+    return true;
+  } catch (error) {
+    console.error('Error making file public:', error);
+    throw error;
+  }
 }
