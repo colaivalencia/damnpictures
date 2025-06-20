@@ -1,78 +1,98 @@
-// Supabase configuration with Google Drive integration
+// Supabase configuration with Netlify Functions for Google Drive
 const SUPABASE_URL = 'https://yxsgedkyoosbauhydtlp.supabase.co'
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl4c2dlZGt5b29zYmF1aHlkdGxwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAxOTIzMTQsImV4cCI6MjA2NTc2ODMxNH0.CBKJa4Q1K1goiQtc8huQcXMLF6OEwFJ3RLlNSixuHAA'
 
 // Initialize Supabase client
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
 
-// Google Drive configuration from environment variables
-const GOOGLE_DRIVE_CONFIG = {
-  clientEmail: 'damnpicures-service@damnpictures.iam.gserviceaccount.com',
-  projectId: 'damnpictures',
-  folderId: '1NSxPm_mBUYz_exC9dF7zHb1aas6eKbPC', // Replace with your actual folder ID
-  // Note: Private key will be handled server-side for security
-};
-
-// Google Drive helper functions
-const googleDriveHelpers = {
-  // Get OAuth access token (simplified for frontend)
-  async getAccessToken() {
-    // In production, this should be done server-side
-    // For now, we'll use a simplified approach
-    
-    // This is a placeholder - in reality, you'd need to implement
-    // JWT signing server-side for security
-    console.warn('Google Drive integration needs server-side implementation for production');
-    
-    // For testing, we'll simulate the token
-    return 'test-token';
-  },
-
-  // Upload file to Google Drive
+// Netlify Functions helpers for Google Drive
+const netlifyDriveHelpers = {
+  // Upload file to Google Drive via Netlify Function
   async uploadToDrive(file, username) {
     try {
-      console.log(`Uploading ${file.name} to Google Drive for user ${username}`);
-      
-      // For now, simulate successful upload
-      // In production, this would make actual API calls
-      const mockFileId = 'drive-file-' + Date.now();
-      const mockPublicUrl = `https://drive.google.com/uc?id=${mockFileId}`;
-      
-      // Simulate upload delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
+      console.log(`Uploading ${file.name} to Google Drive via Netlify Function`);
+
+      // Convert file to base64
+      const base64Data = await this.fileToBase64(file);
+
+      // Call Netlify Function
+      const response = await fetch('/.netlify/functions/upload-to-drive', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'upload',
+          fileData: base64Data,
+          filename: file.name,
+          username: username,
+          mimeType: file.type
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `HTTP ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log('✅ Google Drive upload successful:', result);
+
       return {
         data: {
-          fileId: mockFileId,
-          publicUrl: mockPublicUrl,
-          path: `${username}/${file.name}`
+          fileId: result.fileId,
+          publicUrl: result.publicUrl,
+          path: result.path
         }
       };
-      
+
     } catch (error) {
-      console.error('Google Drive upload error:', error);
+      console.error('❌ Google Drive upload failed:', error);
       return { error: error.message };
     }
   },
 
-  // Delete file from Google Drive
+  // Delete file from Google Drive via Netlify Function
   async deleteFromDrive(fileId) {
     try {
       console.log(`Deleting file ${fileId} from Google Drive`);
-      
-      // Simulate deletion
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      return { success: true };
-      
+
+      const response = await fetch('/.netlify/functions/upload-to-drive', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'delete',
+          fileId: fileId
+        })
+      });
+
+      const result = await response.json();
+      return { success: result.success };
+
     } catch (error) {
-      console.error('Google Drive delete error:', error);
+      console.error('❌ Google Drive delete failed:', error);
       return { error: error.message };
     }
+  },
+
+  // Convert file to base64
+  fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => {
+        // Remove the data:image/jpeg;base64, prefix
+        const base64 = reader.result.split(',')[1];
+        resolve(base64);
+      };
+      reader.onerror = error => reject(error);
+    });
   }
 };
 
-// Updated Supabase helpers with Google Drive integration
+// Updated Supabase helpers with Netlify Functions integration
 const supabaseHelpers = {
   // Auth helpers (unchanged)
   async signUp(email, password, username) {
@@ -83,7 +103,6 @@ const supabaseHelpers = {
     
     if (error) return { error }
     
-    // Create user profile
     if (data.user) {
       const { error: profileError } = await supabase
         .from('user_profiles')
@@ -117,13 +136,13 @@ const supabaseHelpers = {
     return user
   },
 
-  // Modified photo helpers for Google Drive
+  // Google Drive upload via Netlify Functions
   async uploadPhoto(file, username) {
     try {
       console.log(`Starting upload: ${file.name} for ${username}`);
       
-      // Upload to Google Drive
-      const driveResult = await googleDriveHelpers.uploadToDrive(file, username);
+      // Upload to Google Drive via Netlify Function
+      const driveResult = await netlifyDriveHelpers.uploadToDrive(file, username);
       
       if (driveResult.error) {
         return { error: driveResult.error };
@@ -151,8 +170,8 @@ const supabaseHelpers = {
         username: photoData.username,
         filename: photoData.filename,
         original_name: photoData.original_name,
-        file_url: photoData.publicUrl, // Google Drive URL
-        drive_file_id: photoData.fileId, // Store Drive file ID for deletion
+        file_url: photoData.publicUrl,
+        drive_file_id: photoData.fileId,
         file_size: photoData.file_size,
         is_public: true
       })
@@ -197,10 +216,10 @@ const supabaseHelpers = {
   async deletePhoto(photoId, driveFileId) {
     try {
       // Delete from Google Drive first
-      const driveResult = await googleDriveHelpers.deleteFromDrive(driveFileId);
+      const driveResult = await netlifyDriveHelpers.deleteFromDrive(driveFileId);
       
       if (driveResult.error) {
-        return { error: driveResult.error };
+        console.warn('Failed to delete from Google Drive:', driveResult.error);
       }
 
       // Delete from database
@@ -220,4 +239,4 @@ const supabaseHelpers = {
 // Make available globally
 window.supabaseHelpers = supabaseHelpers
 
-console.log('Google Drive integration loaded (mock mode for testing)');
+console.log('Google Drive integration via Netlify Functions loaded');

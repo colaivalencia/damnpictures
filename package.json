@@ -1,0 +1,11 @@
+{
+  "name": "damnpictures",
+  "version": "1.0.0",
+  "description": "Photo gallery with random user discovery",
+  "dependencies": {
+    "google-auth-library": "^9.0.0"
+  },
+  "scripts": {
+    "build": "echo 'No build step required'"
+  }
+}
