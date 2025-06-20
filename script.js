@@ -214,6 +214,28 @@ window.addEventListener('keydown', (e) => {
   }
 });
 
+// Add this to your script.js file after the existing label click handler
+
+// FIXED: Ensure photos load when modal opens
+label.addEventListener('click', async () => {
+  if (currentUser) {
+    // If logged in, show upload modal
+    uploadModal.classList.remove('hidden');
+    
+    // MANUALLY trigger photo loading
+    console.log('🎯 Modal opened, manually loading photos...');
+    if (window.uploadManager && window.uploadManager.loadUserPhotos) {
+      await window.uploadManager.loadUserPhotos();
+    } else {
+      console.warn('⚠️ uploadManager not ready yet');
+    }
+  } else {
+    // If not logged in, show login modal
+    loginModal.classList.remove('hidden');
+    document.getElementById('loginEmail').focus();
+  }
+});
+
 // ===== THIRD PARTY AUTH (PLACEHOLDER) =====
 document.querySelector('.google').addEventListener('click', async () => {
   try {

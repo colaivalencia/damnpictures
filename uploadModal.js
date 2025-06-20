@@ -601,26 +601,53 @@ class ImageUploadManager {
   }
 
   async loadUserPhotos() {
+    console.log('=== loadUserPhotos called ===');
+    
     const userProfile = window.getCurrentUserProfile();
-    if (!userProfile) return;
+    console.log('User profile:', userProfile);
+    
+    if (!userProfile) {
+      console.log('❌ No user profile found');
+      return;
+    }
 
     try {
+      console.log(`🔍 Fetching photos for username: ${userProfile.username}`);
+      
       const { data: photos, error } = await supabaseHelpers.getUserPhotos(userProfile.username);
+      
+      console.log('Supabase response:', { photos: photos?.length, error });
       
       if (error) {
         console.error('Error loading user photos:', error);
         return;
       }
 
+      console.log(`📸 Found ${photos?.length || 0} photos`);
+      
+      if (photos && photos.length > 0) {
+        console.log('Sample photo:', photos[0]);
+      }
+
       this.displayUserPhotos(photos || []);
       
     } catch (error) {
-      console.error('Error loading user photos:', error);
+      console.error('Exception in loadUserPhotos:', error);
     }
   }
 
   displayUserPhotos(photos) {
+    console.log('=== displayUserPhotos called ===');
+    console.log('Photos to display:', photos?.length);
+    console.log('photoList element:', this.photoList);
+    
+    if (!this.photoList) {
+      console.error('❌ photoList element not found!');
+      return;
+    }
+    
     if (!photos || photos.length === 0) {
+      console.log('📝 Showing empty state');
       this.photoList.innerHTML = `
         <div class="empty-state">
           <div class="empty-state-icon">📷</div>
@@ -630,9 +657,12 @@ class ImageUploadManager {
       return;
     }
 
+    console.log('🎨 Generating HTML for photos...');
+    
     // Simple version without bulk actions - just like the original
-    this.photoList.innerHTML = photos.map(photo => {
-      const imageUrl = this.getOptimizedImageUrl(photo); // Use the working URL function
+    const photosHtml = photos.map((photo, index) => {
+      const imageUrl = this.getOptimizedImageUrl(photo);
+      console.log(`Photo ${index + 1}: ${photo.filename} → ${imageUrl}`);
       
       return `
         <div class="photo-item" data-photo-id="${photo.id}">
@@ -646,6 +676,10 @@ class ImageUploadManager {
         </div>
       `;
     }).join('');
+    
+    console.log('📄 Setting innerHTML...');
+    this.photoList.innerHTML = photosHtml;
+    console.log('✅ displayUserPhotos complete');
   }
 
   setupBulkSelectionListeners() {
@@ -862,3 +896,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Make manager available globally
 window.ImageUploadManager = ImageUploadManager;
+
+// Add manual test function
+window.testPhotoLoad = async function() {
+  console.log('🧪 Manual test photo load...');
+  if (window.uploadManager) {
+    await window.uploadManager.loadUserPhotos();
+  } else {
+    console.error('❌ uploadManager not found');
+  }
+};
+
+console.log('📸 Upload manager loaded. Test with: window.testPhotoLoad()');
