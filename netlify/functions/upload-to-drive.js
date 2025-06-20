@@ -9,6 +9,10 @@ const headers = {
 };
 
 exports.handler = async (event, context) => {
+  console.log('=== FUNCTION CALLED ===');
+  console.log('HTTP Method:', event.httpMethod);
+  console.log('Body length:', event.body?.length);
+
   if (event.httpMethod === 'OPTIONS') {
     return { statusCode: 200, headers, body: '' };
   }
@@ -22,14 +26,20 @@ exports.handler = async (event, context) => {
   }
 
   try {
+    console.log('Parsing request body...');
     const { action, ...data } = JSON.parse(event.body);
+    console.log('Action:', action);
+    console.log('Data keys:', Object.keys(data));
 
     switch (action) {
       case 'upload':
+        console.log('Processing upload for user:', data.username);
         return await handleUpload(data);
       case 'get-token':
+        console.log('Getting access token...');
         return await getAccessToken();
       default:
+        console.error('Invalid action:', action);
         return {
           statusCode: 400,
           headers,
@@ -37,11 +47,19 @@ exports.handler = async (event, context) => {
         };
     }
   } catch (error) {
-    console.error('Function error:', error);
+    console.error('=== FUNCTION ERROR ===');
+    console.error('Error message:', error.message);
+    console.error('Error stack:', error.stack);
+    console.error('Request body:', event.body?.substring(0, 200));
+    
     return {
       statusCode: 500,
       headers,
-      body: JSON.stringify({ error: error.message })
+      body: JSON.stringify({ 
+        error: error.message,
+        details: error.stack,
+        timestamp: new Date().toISOString()
+      })
     };
   }
 };
@@ -147,21 +165,28 @@ async function getAccessToken() {
 // Handle upload
 async function handleUpload({ fileData, filename, username, mimeType }) {
   try {
-    console.log(`Starting upload for ${filename}`);
+    console.log(`=== UPLOAD START FOR ${username} ===`);
+    console.log('File:', filename, 'Size:', fileData?.length, 'Type:', mimeType);
     
     // Get access token
+    console.log('Getting access token...');
     const tokenResponse = await getAccessToken();
     if (tokenResponse.statusCode !== 200) {
       const errorData = JSON.parse(tokenResponse.body);
+      console.error('Token failed:', errorData);
       throw new Error(`Token error: ${errorData.error}`);
     }
 
     const { access_token } = JSON.parse(tokenResponse.body);
+    console.log('Access token obtained successfully');
     
     // Ensure user folder exists
+    console.log(`Creating/finding folder for: ${username}`);
     const userFolderId = await ensureUserFolder(username, access_token);
+    console.log(`Folder ID obtained: ${userFolderId}`);
     
     // Upload file
+    console.log('Starting file upload to Google Drive...');
     const uploadResult = await uploadToGoogleDrive({
       fileData,
       filename,
@@ -169,12 +194,16 @@ async function handleUpload({ fileData, filename, username, mimeType }) {
       parentFolderId: userFolderId,
       accessToken: access_token
     });
+    console.log('Upload result:', uploadResult);
 
     // Make file public
+    console.log(`Making file ${uploadResult.id} public...`);
     await makeFilePublic(uploadResult.id, access_token);
+    console.log('File made public successfully');
 
     // Use the simple direct access format that works best
     const publicUrl = `https://drive.google.com/uc?export=view&id=${uploadResult.id}`;
+    console.log(`=== SUCCESS FOR ${username} ===`);
 
     return {
       statusCode: 200,
@@ -187,11 +216,18 @@ async function handleUpload({ fileData, filename, username, mimeType }) {
     };
 
   } catch (error) {
-    console.error('Upload error:', error);
+    console.error(`=== FAILED FOR ${username} ===`);
+    console.error('Error details:', error);
+    console.error('Error stack:', error.stack);
+    
     return {
       statusCode: 500,
       headers,
-      body: JSON.stringify({ error: error.message })
+      body: JSON.stringify({ 
+        error: error.message,
+        username: username,
+        timestamp: new Date().toISOString()
+      })
     };
   }
 }
@@ -199,6 +235,7 @@ async function handleUpload({ fileData, filename, username, mimeType }) {
 // Ensure user folder exists
 async function ensureUserFolder(username, accessToken) {
   const parentFolderId = process.env.GOOGLE_DRIVE_FOLDER_ID;
+  console.log(`Searching for folder '${username}' in parent '${parentFolderId}'`);
 
   const searchUrl = `https://www.googleapis.com/drive/v3/files?q=name='${username}' and parents in '${parentFolderId}' and mimeType='application/vnd.google-apps.folder'`;
   
@@ -206,13 +243,22 @@ async function ensureUserFolder(username, accessToken) {
     headers: { 'Authorization': `Bearer ${accessToken}` }
   });
 
+  if (!searchResponse.ok) {
+    const errorText = await searchResponse.text();
+    console.error('Folder search failed:', errorText);
+    throw new Error(`Folder search failed: ${searchResponse.status}`);
+  }
+
   const searchResult = await searchResponse.json();
+  console.log('Folder search result:', searchResult);
   
   if (searchResult.files && searchResult.files.length > 0) {
+    console.log(`Found existing folder: ${searchResult.files[0].id}`);
     return searchResult.files[0].id;
   }
 
   // Create new folder
+  console.log(`Creating new folder for: ${username}`);
   const folderResponse = await fetch('https://www.googleapis.com/drive/v3/files', {
     method: 'POST',
     headers: {
@@ -226,12 +272,21 @@ async function ensureUserFolder(username, accessToken) {
     })
   });
 
+  if (!folderResponse.ok) {
+    const errorText = await folderResponse.text();
+    console.error('Folder creation failed:', errorText);
+    throw new Error(`Folder creation failed: ${folderResponse.status}`);
+  }
+
   const newFolder = await folderResponse.json();
+  console.log(`Created new folder: ${newFolder.id}`);
   return newFolder.id;
 }
 
 // Upload file to Google Drive
 async function uploadToGoogleDrive({ fileData, filename, mimeType, parentFolderId, accessToken }) {
+  console.log(`Uploading ${filename} to folder ${parentFolderId}`);
+  
   const boundary = '-------314159265358979323846';
   const delimiter = `\r\n--${boundary}\r\n`;
   const close_delim = `\r\n--${boundary}--`;
@@ -249,6 +304,7 @@ async function uploadToGoogleDrive({ fileData, filename, mimeType, parentFolderI
     `Content-Type: ${mimeType}\r\n\r\n`;
 
   const fileBuffer = Buffer.from(fileData, 'base64');
+  console.log(`File buffer size: ${fileBuffer.length} bytes`);
 
   const response = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
     method: 'POST',
@@ -265,10 +321,13 @@ async function uploadToGoogleDrive({ fileData, filename, mimeType, parentFolderI
 
   if (!response.ok) {
     const errorText = await response.text();
+    console.error('Upload failed:', errorText);
     throw new Error(`Upload failed: ${response.status} - ${errorText}`);
   }
 
-  return await response.json();
+  const result = await response.json();
+  console.log(`Upload successful: ${result.id}`);
+  return result;
 }
 
 // Make file publicly accessible with proper error handling
@@ -276,8 +335,8 @@ async function makeFilePublic(fileId, accessToken) {
   try {
     console.log(`Setting permissions for file ${fileId}...`);
     
-    // Method 1: Set anyone can view permission
-    const permissionResponse = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}/permissions`, {
+    // Set anyone can view permission
+    const permissionResponse = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}/permissions?sendNotificationEmail=false`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${accessToken}`,
@@ -285,55 +344,19 @@ async function makeFilePublic(fileId, accessToken) {
       },
       body: JSON.stringify({
         role: 'reader',
-        type: 'anyone'
+        type: 'anyone',
+        allowFileDiscovery: false
       })
     });
-
-    const permissionResult = await permissionResponse.text();
-    console.log('Permission response:', permissionResponse.status, permissionResult);
 
     if (!permissionResponse.ok) {
-      console.error('Permission setting failed:', permissionResult);
-      throw new Error(`Permission failed: ${permissionResponse.status} - ${permissionResult}`);
+      const errorText = await permissionResponse.text();
+      console.error('Permission setting failed:', errorText);
+      throw new Error(`Permission failed: ${permissionResponse.status} - ${errorText}`);
     }
 
-    // Method 2: Also try to update file metadata to make it shareable
-    const updateResponse = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}`, {
-      method: 'PATCH',
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        copyRequiresWriterPermission: false,
-        writersCanShare: true
-      })
-    });
-
-    if (updateResponse.ok) {
-      console.log('File metadata updated successfully');
-    } else {
-      console.warn('File metadata update failed, but permissions might still work');
-    }
-
-    // Method 3: Verify the permission was set
-    const checkResponse = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}/permissions`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${accessToken}`
-      }
-    });
-
-    if (checkResponse.ok) {
-      const permissions = await checkResponse.json();
-      console.log('Current permissions:', permissions);
-      
-      // Check if we have the 'anyone' permission
-      const hasPublicPermission = permissions.permissions?.some(p => p.type === 'anyone');
-      if (!hasPublicPermission) {
-        throw new Error('Public permission not found after setting');
-      }
-    }
+    const permissionResult = await permissionResponse.json();
+    console.log('Permission set result:', permissionResult);
 
     console.log('✅ File permissions set successfully');
     return true;
