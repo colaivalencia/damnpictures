@@ -171,11 +171,30 @@ logoutButton.addEventListener('click', async () => {
 
 // ===== MODAL CONTROLS =====
 
-// Show login modal when clicking label
-label.addEventListener('click', () => {
+// FIXED: Single label click handler with photo loading
+label.addEventListener('click', async () => {
   if (currentUser) {
     // If logged in, show upload modal
     uploadModal.classList.remove('hidden');
+    
+    // Wait a bit for DOM to be ready, then load photos
+    setTimeout(async () => {
+      console.log('🎯 Modal opened, loading photos...');
+      if (window.uploadManager && window.uploadManager.loadUserPhotos) {
+        await window.uploadManager.loadUserPhotos();
+      } else {
+        console.warn('⚠️ uploadManager not ready, trying again...');
+        // Try again after a longer delay
+        setTimeout(async () => {
+          if (window.uploadManager && window.uploadManager.loadUserPhotos) {
+            await window.uploadManager.loadUserPhotos();
+          } else {
+            console.error('❌ uploadManager still not ready');
+          }
+        }, 1000);
+      }
+    }, 100);
+    
   } else {
     // If not logged in, show login modal
     loginModal.classList.remove('hidden');
@@ -211,28 +230,6 @@ window.addEventListener('keydown', (e) => {
     loginModal.classList.add('hidden');
     signupModal.classList.add('hidden');
     uploadModal.classList.add('hidden');
-  }
-});
-
-// Add this to your script.js file after the existing label click handler
-
-// FIXED: Ensure photos load when modal opens
-label.addEventListener('click', async () => {
-  if (currentUser) {
-    // If logged in, show upload modal
-    uploadModal.classList.remove('hidden');
-    
-    // MANUALLY trigger photo loading
-    console.log('🎯 Modal opened, manually loading photos...');
-    if (window.uploadManager && window.uploadManager.loadUserPhotos) {
-      await window.uploadManager.loadUserPhotos();
-    } else {
-      console.warn('⚠️ uploadManager not ready yet');
-    }
-  } else {
-    // If not logged in, show login modal
-    loginModal.classList.remove('hidden');
-    document.getElementById('loginEmail').focus();
   }
 });
 
@@ -272,3 +269,57 @@ window.openUploadModal = () => {
     console.log('Please log in first');
   }
 };
+
+// ===== MANUAL PHOTO LOAD HELPER =====
+window.manualLoadPhotos = async function() {
+  console.log('🔧 Manual photo load starting...');
+  
+  if (!window.uploadManager) {
+    console.error('❌ uploadManager not found');
+    return;
+  }
+  
+  const userProfile = getCurrentUserProfile();
+  if (!userProfile) {
+    console.error('❌ No user profile');
+    return;
+  }
+  
+  console.log(`👤 Loading photos for: ${userProfile.username}`);
+  
+  const { data: photos, error } = await supabase
+    .from('photos')
+    .select('*')
+    .eq('username', userProfile.username)
+    .order('created_at', { ascending: false });
+  
+  console.log(`📸 Database query result: ${photos?.length || 0} photos, error:`, error);
+  
+  if (photos && photos.length > 0) {
+    console.log('Sample photo:', photos[0]);
+    
+    const photoList = document.getElementById('photoList');
+    if (photoList) {
+      const photosHtml = photos.map(photo => {
+        const imageUrl = `https://lh3.googleusercontent.com/d/${photo.drive_file_id}=w400-h400-c`;
+        return `
+          <div class="photo-item" data-photo-id="${photo.id}">
+            <img src="${imageUrl}" alt="${photo.original_name}" loading="lazy" />
+            <div class="photo-overlay">
+              <button class="delete-btn" onclick="uploadManager.deletePhoto('${photo.id}', '${photo.drive_file_id}')">
+                ×
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+      
+      photoList.innerHTML = photosHtml;
+      console.log('✅ Photos manually inserted into DOM');
+    }
+  } else {
+    console.log('📝 No photos found or error occurred');
+  }
+};
+
+console.log('📸 Script loaded. Try: window.manualLoadPhotos()');
