@@ -1,4 +1,4 @@
-// Router for handling URL navigation and random redirects
+// Updated router.js - Fixed Google Drive image loading
 class DamnPicturesRouter {
   constructor() {
     this.currentUser = null
@@ -171,6 +171,36 @@ class DamnPicturesRouter {
     }
   }
 
+  // FIXED: Better Google Drive URL handling
+  getOptimizedImageUrl(photo) {
+    if (!photo.drive_file_id) {
+      // Fallback to Supabase storage
+      if (photo.file_path) {
+        const { data } = supabase.storage
+          .from('photos')
+          .getPublicUrl(photo.file_path)
+        return data.publicUrl
+      }
+      return photo.file_url || null
+    }
+
+    // For Google Drive, use the most reliable format
+    // This format works best for public images
+    return `https://lh3.googleusercontent.com/d/${photo.drive_file_id}=w2000-h2000-rw`
+  }
+
+  // FIXED: Better fallback URL generation
+  getBackupImageUrls(photo) {
+    if (!photo.drive_file_id) return []
+    
+    return [
+      `https://drive.google.com/uc?export=view&id=${photo.drive_file_id}`,
+      `https://drive.google.com/thumbnail?id=${photo.drive_file_id}&sz=w2000`,
+      `https://lh3.googleusercontent.com/d/${photo.drive_file_id}`,
+      `https://drive.google.com/file/d/${photo.drive_file_id}/view`
+    ]
+  }
+
   populateGallery(photos) {
     const gallery = document.getElementById('gallery')
     if (!gallery) return
@@ -188,46 +218,52 @@ class DamnPicturesRouter {
 
       const img = document.createElement('img')
       
-      // Use file_url if available (Google Drive), otherwise use Supabase storage
-      if (photo.file_url) {
-        // Google Drive or external URL
-        img.src = photo.file_url
-        console.log('Loading Google Drive image:', photo.file_url)
-      } else if (photo.file_path) {
-        // Supabase Storage fallback
-        const { data } = supabase.storage
-          .from('photos')
-          .getPublicUrl(photo.file_path)
-        img.src = data.publicUrl
-        console.log('Loading Supabase image:', data.publicUrl)
-      } else {
+      // Use optimized URL
+      const primaryUrl = this.getOptimizedImageUrl(photo)
+      const backupUrls = this.getBackupImageUrls(photo)
+      
+      if (!primaryUrl) {
         console.error('No valid URL found for photo:', photo)
         return
       }
       
+      img.src = primaryUrl
       img.alt = photo.original_name || photo.filename
       
-      // Handle image load errors with fallback attempts
+      // Enhanced error handling with multiple fallbacks
+      let currentFallbackIndex = 0
       img.onerror = () => {
-        console.error('Failed to load image:', photo.filename, 'URL:', img.src)
+        console.error(`Failed to load image: ${photo.filename}, URL: ${img.src}`)
         
-        // Try alternative Google Drive URL formats if the first one fails
-        if (photo.file_url && photo.drive_file_id) {
-          if (img.src.includes('uc?export=view')) {
-            // Try thumbnail format
-            img.src = `https://drive.google.com/thumbnail?id=${photo.drive_file_id}&sz=w1000`
-            console.log('Trying thumbnail format:', img.src)
-          } else if (img.src.includes('thumbnail')) {
-            // Try direct access format
-            img.src = `https://lh3.googleusercontent.com/d/${photo.drive_file_id}`
-            console.log('Trying direct format:', img.src)
-          } else {
-            // Hide if all formats fail
-            slide.style.display = 'none'
-          }
+        if (currentFallbackIndex < backupUrls.length) {
+          console.log(`Trying fallback ${currentFallbackIndex + 1}:`, backupUrls[currentFallbackIndex])
+          img.src = backupUrls[currentFallbackIndex]
+          currentFallbackIndex++
         } else {
-          slide.style.display = 'none'
+          console.error('All fallback URLs failed for:', photo.filename)
+          // Show a placeholder or hide the slide
+          slide.innerHTML = `
+            <div style="
+              height: 100vh; 
+              display: flex; 
+              align-items: center; 
+              justify-content: center; 
+              background: #222; 
+              color: #666;
+              flex-direction: column;
+              gap: 1rem;
+            ">
+              <div style="font-size: 4rem;">📷</div>
+              <div>Image unavailable</div>
+              <div style="font-size: 0.8rem; opacity: 0.6;">${photo.original_name || photo.filename}</div>
+            </div>
+          `
         }
+      }
+
+      // Success handler
+      img.onload = () => {
+        console.log(`✅ Successfully loaded: ${photo.filename}`)
       }
 
       slide.appendChild(img)

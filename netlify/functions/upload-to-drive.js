@@ -1,4 +1,4 @@
-// Simplified Google Drive function using direct JWT creation
+// Fixed upload-to-drive.js with better permission handling
 const crypto = require('crypto');
 
 const headers = {
@@ -35,6 +35,9 @@ exports.handler = async (event, context) => {
       case 'upload':
         console.log('Processing upload for user:', data.username);
         return await handleUpload(data);
+      case 'delete':
+        console.log('Processing delete for file:', data.fileId);
+        return await handleDelete(data.fileId);
       case 'get-token':
         console.log('Getting access token...');
         return await getAccessToken();
@@ -162,7 +165,7 @@ async function getAccessToken() {
   }
 }
 
-// Handle upload
+// Handle upload with improved permissions
 async function handleUpload({ fileData, filename, username, mimeType }) {
   try {
     console.log(`=== UPLOAD START FOR ${username} ===`);
@@ -196,14 +199,15 @@ async function handleUpload({ fileData, filename, username, mimeType }) {
     });
     console.log('Upload result:', uploadResult);
 
-    // Make file public
-    console.log(`Making file ${uploadResult.id} public...`);
+    // CRITICAL: Make file publicly viewable
+    console.log(`Making file ${uploadResult.id} publicly accessible...`);
     await makeFilePublic(uploadResult.id, access_token);
-    console.log('File made public successfully');
+    console.log('File permissions updated successfully');
 
-    // Use the simple direct access format that works best
-    const publicUrl = `https://drive.google.com/uc?export=view&id=${uploadResult.id}`;
+    // Use the most reliable URL format that works with public access
+    const publicUrl = `https://lh3.googleusercontent.com/d/${uploadResult.id}=w2000-h2000-rw`;
     console.log(`=== SUCCESS FOR ${username} ===`);
+    console.log('Public URL:', publicUrl);
 
     return {
       statusCode: 200,
@@ -211,7 +215,8 @@ async function handleUpload({ fileData, filename, username, mimeType }) {
       body: JSON.stringify({
         fileId: uploadResult.id,
         publicUrl,
-        path: `${username}/${filename}`
+        path: `${username}/${filename}`,
+        success: true
       })
     };
 
@@ -232,12 +237,66 @@ async function handleUpload({ fileData, filename, username, mimeType }) {
   }
 }
 
-// Ensure user folder exists
+// Handle file deletion
+async function handleDelete(fileId) {
+  try {
+    console.log(`=== DELETE START FOR FILE ${fileId} ===`);
+    
+    // Get access token
+    const tokenResponse = await getAccessToken();
+    if (tokenResponse.statusCode !== 200) {
+      const errorData = JSON.parse(tokenResponse.body);
+      throw new Error(`Token error: ${errorData.error}`);
+    }
+
+    const { access_token } = JSON.parse(tokenResponse.body);
+    
+    // Delete the file
+    const deleteResponse = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${access_token}`
+      }
+    });
+
+    if (!deleteResponse.ok) {
+      const errorText = await deleteResponse.text();
+      console.error('Delete failed:', errorText);
+      throw new Error(`Delete failed: ${deleteResponse.status} - ${errorText}`);
+    }
+
+    console.log(`=== DELETE SUCCESS FOR FILE ${fileId} ===`);
+
+    return {
+      statusCode: 200,
+      headers,
+      body: JSON.stringify({
+        success: true,
+        fileId: fileId
+      })
+    };
+
+  } catch (error) {
+    console.error(`=== DELETE FAILED FOR FILE ${fileId} ===`);
+    console.error('Error details:', error);
+    
+    return {
+      statusCode: 500,
+      headers,
+      body: JSON.stringify({ 
+        error: error.message,
+        fileId: fileId
+      })
+    };
+  }
+}
+
+// Ensure user folder exists with proper permissions
 async function ensureUserFolder(username, accessToken) {
   const parentFolderId = process.env.GOOGLE_DRIVE_FOLDER_ID;
   console.log(`Searching for folder '${username}' in parent '${parentFolderId}'`);
 
-  const searchUrl = `https://www.googleapis.com/drive/v3/files?q=name='${username}' and parents in '${parentFolderId}' and mimeType='application/vnd.google-apps.folder'`;
+  const searchUrl = `https://www.googleapis.com/drive/v3/files?q=name='${username}' and parents in '${parentFolderId}' and mimeType='application/vnd.google-apps.folder' and trashed=false`;
   
   const searchResponse = await fetch(searchUrl, {
     headers: { 'Authorization': `Bearer ${accessToken}` }
@@ -280,6 +339,10 @@ async function ensureUserFolder(username, accessToken) {
 
   const newFolder = await folderResponse.json();
   console.log(`Created new folder: ${newFolder.id}`);
+  
+  // Make folder publicly viewable
+  await makeFilePublic(newFolder.id, accessToken);
+  
   return newFolder.id;
 }
 
@@ -330,12 +393,12 @@ async function uploadToGoogleDrive({ fileData, filename, mimeType, parentFolderI
   return result;
 }
 
-// Make file publicly accessible with proper error handling
+// CRITICAL: Improved public permission setting
 async function makeFilePublic(fileId, accessToken) {
   try {
-    console.log(`Setting permissions for file ${fileId}...`);
+    console.log(`Setting public permissions for file/folder ${fileId}...`);
     
-    // Set anyone can view permission
+    // First, set the file to be publicly readable
     const permissionResponse = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}/permissions?sendNotificationEmail=false`, {
       method: 'POST',
       headers: {
@@ -357,6 +420,25 @@ async function makeFilePublic(fileId, accessToken) {
 
     const permissionResult = await permissionResponse.json();
     console.log('Permission set result:', permissionResult);
+
+    // Also update the file to ensure it's publicly viewable
+    const updateResponse = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?fields=id,webViewLink,webContentLink`, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        viewersCanCopyContent: true,
+        writersCanShare: false,
+        copyRequiresWriterPermission: false
+      })
+    });
+
+    if (updateResponse.ok) {
+      const updateResult = await updateResponse.json();
+      console.log('File update result:', updateResult);
+    }
 
     console.log('✅ File permissions set successfully');
     return true;
