@@ -42,17 +42,6 @@ body {
   z-index: 10;
   pointer-events: none;
 }
-.colai-label {
-  pointer-events: auto;
-  font-weight: bold;
-  font-size: 1.2rem;
-  padding: 1rem;
-  color: white;
-  mix-blend-mode: difference;
-  background: transparent;
-  cursor: pointer;
-  user-select: none;
-}
 
 /* === Modal Base === */
 .modal {
