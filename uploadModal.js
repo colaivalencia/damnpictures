@@ -1,4 +1,4 @@
-// Clean uploadModal.js with proper structure
+// Clean uploadModal.js with edit mode functionality
 
 class ImageUploadManager {
   constructor() {
@@ -7,6 +7,7 @@ class ImageUploadManager {
     this.maxDimension = 2048; // Max width/height for compression
     this.selectedPhotos = new Set(); // Track selected photos for bulk delete
     this.pendingFiles = []; // Files ready for upload confirmation
+    this.editMode = false; // Track if we're in edit/delete mode
     this.init();
   }
 
@@ -616,15 +617,78 @@ class ImageUploadManager {
 
     console.log('🎨 Generating HTML for photos...');
     
+    // Clear selected photos when reloading
+    this.selectedPhotos.clear();
+    this.editMode = false; // Reset edit mode
+
+    // Create edit/cancel button header
+    const editButtonHtml = `
+      <div class="edit-controls" style="grid-column: 1 / -1; margin-bottom: 16px;">
+        <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px; background: #222; border-radius: 8px;">
+          <h3 style="margin: 0; color: #fff; font-size: 18px;">Your Photos</h3>
+          <button id="editToggleBtn" class="edit-toggle-btn" style="
+            background: transparent;
+            color: #667eea;
+            border: 1px solid #667eea;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+          ">Edit</button>
+        </div>
+      </div>
+    `;
+
+    // Bulk actions (hidden by default)
+    const bulkActionsHtml = `
+      <div class="bulk-actions" id="bulkActions" style="grid-column: 1 / -1; margin-bottom: 16px; display: none;">
+        <div style="display: flex; align-items: center; gap: 12px; padding: 12px; background: #333; border-radius: 8px;">
+          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+            <input type="checkbox" id="selectAllPhotos" style="margin: 0;" />
+            <span style="color: #ccc; font-size: 14px;">Select All</span>
+          </label>
+          <div class="bulk-controls" style="display: flex; align-items: center; gap: 8px; margin-left: auto;">
+            <span id="selectedCount" style="color: #999; font-size: 14px;">0 selected</span>
+            <button id="deleteSelectedBtn" class="delete-selected-btn" style="
+              background: #ff4757; 
+              color: white; 
+              border: none; 
+              padding: 6px 12px; 
+              border-radius: 6px; 
+              font-size: 12px; 
+              cursor: pointer;
+              opacity: 0.5;
+              pointer-events: none;
+            " disabled>Delete Selected</button>
+          </div>
+        </div>
+      </div>
+    `;
+    
     const photosHtml = photos.map((photo, index) => {
       const imageUrl = this.getOptimizedImageUrl(photo);
       console.log(`Photo ${index + 1}: ${photo.filename} → ${imageUrl}`);
       
       return `
         <div class="photo-item" data-photo-id="${photo.id}">
+          <div class="photo-checkbox" style="
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            z-index: 10;
+            display: none;
+          ">
+            <input type="checkbox" class="photo-select" data-photo-id="${photo.id}" data-drive-id="${photo.drive_file_id}" style="
+              width: 18px;
+              height: 18px;
+              cursor: pointer;
+              accent-color: #667eea;
+            " />
+          </div>
           <img src="${imageUrl}" alt="${photo.original_name}" loading="lazy" 
                onerror="uploadManager.handleImageError(this, '${photo.drive_file_id}')" />
-          <div class="photo-overlay">
+          <div class="photo-overlay" style="opacity: 0; transition: all 0.2s ease;">
             <button class="delete-btn" onclick="uploadManager.deletePhoto('${photo.id}', '${photo.drive_file_id}')">
               ×
             </button>
@@ -634,8 +698,193 @@ class ImageUploadManager {
     }).join('');
     
     console.log('📄 Setting innerHTML...');
-    this.photoList.innerHTML = photosHtml;
+    this.photoList.innerHTML = editButtonHtml + bulkActionsHtml + photosHtml;
+    
+    // Setup edit toggle functionality
+    this.setupEditToggle();
+    
     console.log('✅ displayUserPhotos complete');
+  }
+
+  setupEditToggle() {
+    const editToggleBtn = document.getElementById('editToggleBtn');
+    const bulkActions = document.getElementById('bulkActions');
+    const photoCheckboxes = document.querySelectorAll('.photo-checkbox');
+    const photoOverlays = document.querySelectorAll('.photo-overlay');
+    
+    if (!editToggleBtn) return;
+    
+    editToggleBtn.addEventListener('click', () => {
+      this.editMode = !this.editMode;
+      
+      if (this.editMode) {
+        // Enter edit mode
+        editToggleBtn.textContent = 'Cancel';
+        editToggleBtn.style.background = '#ff4757';
+        editToggleBtn.style.borderColor = '#ff4757';
+        editToggleBtn.style.color = 'white';
+        
+        // Show bulk actions
+        bulkActions.style.display = 'block';
+        
+        // Show checkboxes
+        photoCheckboxes.forEach(checkbox => {
+          checkbox.style.display = 'block';
+        });
+        
+        // Hide individual delete buttons
+        photoOverlays.forEach(overlay => {
+          overlay.style.display = 'none';
+        });
+        
+        // Setup bulk selection listeners
+        this.setupBulkSelectionListeners();
+        
+      } else {
+        // Exit edit mode
+        editToggleBtn.textContent = 'Edit';
+        editToggleBtn.style.background = 'transparent';
+        editToggleBtn.style.borderColor = '#667eea';
+        editToggleBtn.style.color = '#667eea';
+        
+        // Hide bulk actions
+        bulkActions.style.display = 'none';
+        
+        // Hide checkboxes
+        photoCheckboxes.forEach(checkbox => {
+          checkbox.style.display = 'none';
+          checkbox.checked = false;
+        });
+        
+        // Show individual delete buttons
+        photoOverlays.forEach(overlay => {
+          overlay.style.display = 'flex';
+        });
+        
+        // Clear selections
+        this.selectedPhotos.clear();
+      }
+    });
+  }
+
+  setupBulkSelectionListeners() {
+    const selectAllCheckbox = document.getElementById('selectAllPhotos');
+    const deleteSelectedBtn = document.getElementById('deleteSelectedBtn');
+    const selectedCountSpan = document.getElementById('selectedCount');
+    const photoCheckboxes = document.querySelectorAll('.photo-select');
+
+    // Reset selections
+    this.selectedPhotos.clear();
+    this.updateBulkControls();
+
+    // Select all/none functionality
+    selectAllCheckbox?.addEventListener('change', (e) => {
+      const isChecked = e.target.checked;
+      photoCheckboxes.forEach(checkbox => {
+        checkbox.checked = isChecked;
+        if (isChecked) {
+          this.selectedPhotos.add(checkbox.dataset.photoId);
+        } else {
+          this.selectedPhotos.delete(checkbox.dataset.photoId);
+        }
+      });
+      this.updateBulkControls();
+    });
+
+    // Individual photo selection
+    photoCheckboxes.forEach(checkbox => {
+      checkbox.addEventListener('change', (e) => {
+        const photoId = e.target.dataset.photoId;
+        if (e.target.checked) {
+          this.selectedPhotos.add(photoId);
+        } else {
+          this.selectedPhotos.delete(photoId);
+          selectAllCheckbox.checked = false;
+        }
+        this.updateBulkControls();
+      });
+    });
+
+    // Delete selected photos
+    deleteSelectedBtn?.addEventListener('click', () => {
+      this.deleteSelectedPhotos();
+    });
+  }
+
+  updateBulkControls() {
+    const selectedCountSpan = document.getElementById('selectedCount');
+    const deleteSelectedBtn = document.getElementById('deleteSelectedBtn');
+    const count = this.selectedPhotos.size;
+
+    if (selectedCountSpan) {
+      selectedCountSpan.textContent = `${count} selected`;
+    }
+
+    if (deleteSelectedBtn) {
+      if (count > 0) {
+        deleteSelectedBtn.disabled = false;
+        deleteSelectedBtn.style.opacity = '1';
+        deleteSelectedBtn.style.pointerEvents = 'auto';
+        deleteSelectedBtn.textContent = `Delete ${count} Photo${count > 1 ? 's' : ''}`;
+      } else {
+        deleteSelectedBtn.disabled = true;
+        deleteSelectedBtn.style.opacity = '0.5';
+        deleteSelectedBtn.style.pointerEvents = 'none';
+        deleteSelectedBtn.textContent = 'Delete Selected';
+      }
+    }
+  }
+
+  async deleteSelectedPhotos() {
+    if (this.selectedPhotos.size === 0) return;
+
+    const count = this.selectedPhotos.size;
+    if (!confirm(`Are you sure you want to delete ${count} photo${count > 1 ? 's' : ''}?`)) {
+      return;
+    }
+
+    const deleteSelectedBtn = document.getElementById('deleteSelectedBtn');
+    const editToggleBtn = document.getElementById('editToggleBtn');
+    
+    
+    if (editToggleBtn) {
+      editToggleBtn.disabled = true;
+    }
+
+    const selectedPhotoIds = Array.from(this.selectedPhotos);
+    const results = { successful: 0, failed: 0 };
+
+    for (const photoId of selectedPhotoIds) {
+      try {
+        const checkbox = document.querySelector(`[data-photo-id="${photoId}"]`);
+        const driveFileId = checkbox?.dataset.driveId;
+
+        const { error } = await supabaseHelpers.deletePhoto(photoId, driveFileId);
+        
+        if (error) {
+          console.error(`Delete failed for photo ${photoId}:`, error);
+          results.failed++;
+        } else {
+          console.log(`✅ Deleted photo ${photoId}`);
+          results.successful++;
+        }
+      } catch (error) {
+        console.error(`Error deleting photo ${photoId}:`, error);
+        results.failed++;
+      }
+    }
+
+    // Show results
+    if (results.failed > 0) {
+      alert(`Deleted ${results.successful} photos. ${results.failed} failed to delete.`);
+    } else {
+      console.log(`✅ Successfully deleted ${results.successful} photos`);
+    }
+
+    // Clear selection and reload photos
+    this.selectedPhotos.clear();
+    this.editMode = false;
+    await this.loadUserPhotos();
   }
 
   getOptimizedImageUrl(photo) {

@@ -548,6 +548,45 @@ body {
   color: #fff;
 }
 
+/* === Edit Mode Controls === */
+.edit-toggle-btn {
+  background: transparent !important;
+  color: #667eea !important;
+  border: 1px solid #667eea !important;
+  padding: 8px 16px !important;
+  border-radius: 6px !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+}
+
+.edit-toggle-btn:hover {
+  background: rgba(102, 126, 234, 0.1) !important;
+}
+
+.edit-toggle-btn.cancel-mode {
+  background: #ff4757 !important;
+  border-color: #ff4757 !important;
+  color: white !important;
+}
+
+.edit-toggle-btn.cancel-mode:hover {
+  background: #ff3742 !important;
+}
+
+.edit-controls {
+  grid-column: 1 / -1;
+  margin-bottom: 16px;
+}
+
+.edit-controls h3 {
+  margin: 0;
+  color: #fff;
+  font-size: 18px;
+  font-weight: 600;
+}
+
 .photos-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
