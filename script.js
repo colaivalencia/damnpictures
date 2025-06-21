@@ -1,15 +1,17 @@
-// Enhanced authentication with better UX
+// Enhanced AuthManager with Header Menu Integration
 class AuthManager {
   constructor() {
     this.currentUser = null;
     this.currentUserProfile = null;
     this.usernameCheckTimeout = null;
+    this.headerMenuManager = null;
     this.init();
   }
 
   init() {
     this.setupEventListeners();
     this.setupValidation();
+    this.initializeHeaderMenu();
     
     // Auth state listener
     supabase.auth.onAuthStateChange((event, session) => {
@@ -19,6 +21,11 @@ class AuthManager {
         this.handleUserSignedOut();
       }
     });
+  }
+
+  initializeHeaderMenu() {
+    // Initialize header menu manager
+    this.headerMenuManager = new HeaderMenuManager();
   }
 
   setupEventListeners() {
@@ -415,6 +422,11 @@ class AuthManager {
       document.getElementById('loggedInUsername').textContent = profile.username;
       document.getElementById('userAvatar').textContent = profile.username[0]?.toUpperCase() || 'U';
 
+      // Update header menu
+      if (this.headerMenuManager) {
+        this.headerMenuManager.onUserLogin(profile.username);
+      }
+
       // Close modals
       this.closeAllModals();
 
@@ -429,6 +441,12 @@ class AuthManager {
     this.currentUser = null;
     this.currentUserProfile = null;
     document.getElementById('uploadModal').classList.add('hidden');
+    
+    // Update header menu
+    if (this.headerMenuManager) {
+      this.headerMenuManager.onUserLogout();
+    }
+    
     console.log('User signed out');
   }
 
@@ -470,6 +488,12 @@ class AuthManager {
   showLoginModal() {
     if (this.currentUser) {
       document.getElementById('uploadModal').classList.remove('hidden');
+      // Load photos after modal opens
+      setTimeout(async () => {
+        if (window.uploadManager && window.uploadManager.loadUserPhotos) {
+          await window.uploadManager.loadUserPhotos();
+        }
+      }, 100);
     } else {
       document.getElementById('loginModal').classList.remove('hidden');
       document.getElementById('loginEmail').focus();
@@ -496,24 +520,134 @@ class AuthManager {
   }
 }
 
+// Header Menu Manager
+class HeaderMenuManager {
+  constructor() {
+    this.headerMenu = null;
+    this.primaryLabel = null;
+    this.hoverLabel = null;
+    this.submenu = null;
+    this.logoutMenuItem = null;
+    this.isLoggedIn = false;
+    this.currentViewingUser = null;
+    this.init();
+  }
+
+  init() {
+    // Get DOM elements
+    this.headerMenu = document.getElementById('headerMenu');
+    this.primaryLabel = document.getElementById('primaryLabel');
+    this.hoverLabel = document.getElementById('hoverLabel');
+    this.submenu = document.getElementById('submenu');
+    this.logoutMenuItem = document.getElementById('logoutMenuItem');
+
+    // Set up event listeners
+    this.setupEventListeners();
+    
+    // Set initial state (will be updated by router)
+    this.updateMenuState(false, null);
+  }
+
+  setupEventListeners() {
+    // Main menu click
+    this.headerMenu.addEventListener('click', () => {
+      this.handleMenuClick();
+    });
+
+    // Logout menu item click
+    if (this.logoutMenuItem) {
+      this.logoutMenuItem.addEventListener('click', (e) => {
+        e.stopPropagation(); // Prevent menu click from firing
+        this.handleLogout();
+      });
+    }
+
+    // Keyboard navigation
+    this.headerMenu.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        this.handleMenuClick();
+      }
+    });
+  }
+
+  handleMenuClick() {
+    if (window.authManager) {
+      window.authManager.showLoginModal();
+    }
+  }
+
+  async handleLogout() {
+    try {
+      if (window.authManager) {
+        await window.authManager.logout();
+      }
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+  }
+
+  // Update menu state based on authentication and current user
+  updateMenuState(isLoggedIn, loggedInUsername) {
+    this.isLoggedIn = isLoggedIn;
+    
+    // Get current viewing user from router
+    const currentPath = window.location.pathname;
+    if (currentPath.startsWith('/u/')) {
+      this.currentViewingUser = currentPath.split('/u/')[1];
+    } else {
+      this.currentViewingUser = 'anonymous'; // or some default
+    }
+
+    // Always show whose gallery we're viewing
+    if (this.currentViewingUser && this.currentViewingUser !== 'anonymous') {
+      this.primaryLabel.textContent = `damnpictures / ${this.currentViewingUser}`;
+    } else {
+      this.primaryLabel.textContent = 'damnpictures';
+    }
+    
+    if (isLoggedIn && loggedInUsername) {
+      // Logged in state - can manage pictures
+      this.headerMenu.className = 'header-menu logged-in';
+      this.hoverLabel.textContent = 'manage pictures';
+      this.submenu.style.display = '';
+    } else {
+      // Logged out state - should log in
+      this.headerMenu.className = 'header-menu logged-out';
+      this.hoverLabel.textContent = 'log in / sign up';
+      this.submenu.style.display = 'none';
+    }
+  }
+
+  // Method to be called when user logs in
+  onUserLogin(username) {
+    this.updateMenuState(true, username);
+  }
+
+  // Method to be called when user logs out
+  onUserLogout() {
+    this.updateMenuState(false, null);
+  }
+
+  // Method to be called when viewing user changes (from router)
+  onViewingUserChange(username) {
+    this.currentViewingUser = username;
+    this.updateMenuState(this.isLoggedIn, this.isLoggedIn ? window.authManager?.getCurrentUserProfile()?.username : null);
+  }
+}
+
 // Initialize auth manager
 document.addEventListener('DOMContentLoaded', () => {
   window.authManager = new AuthManager();
 
-  // Update label click handler
-  document.getElementById('colaiLabel').addEventListener('click', () => {
-    window.authManager.showLoginModal();
-  });
-
-  // Update logout button
-  document.getElementById('logoutButtonInline').addEventListener('click', () => {
-    window.authManager.logout();
-  });
-
   // Make functions available globally for compatibility
   window.getCurrentUserProfile = () => window.authManager.getCurrentUserProfile();
   window.isLoggedIn = () => window.authManager.isLoggedIn();
+  
+  // Make header menu manager available globally
+  window.headerMenuManager = window.authManager.headerMenuManager;
 });
 
 // Export for other modules
 window.AuthManager = AuthManager;
+window.HeaderMenuManager = HeaderMenuManager;

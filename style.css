@@ -1029,3 +1029,86 @@ body {
   color: #ff4757;
   display: block;
 }
+
+/* Add these styles to your existing style.css */
+
+/* === Enhanced Header Menu Styles === */
+.sidebar-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.header-menu {
+  pointer-events: auto;
+  font-weight: bold;
+  font-size: 1.2rem;
+  padding: 1rem;
+  color: white;
+  mix-blend-mode: difference;
+  cursor: pointer;
+  user-select: none;
+  position: relative;
+}
+
+/* Primary and hover labels */
+.primary-label {
+  display: block;
+}
+
+.hover-label {
+  display: none;
+}
+
+/* Show hover label on hover */
+.header-menu:hover .primary-label {
+  display: none;
+}
+
+.header-menu:hover .hover-label {
+  display: block;
+}
+
+/* Submenu */
+.submenu {
+  position: absolute;
+  top: 100%;
+  left: 1rem;
+  font-weight: bold;
+  font-size: 1.2rem;
+  color: white;
+  mix-blend-mode: difference;
+  display: none;
+}
+
+/* Show submenu on hover - only for logged in users */
+.header-menu.logged-in:hover .submenu {
+  display: block;
+}
+
+/* Submenu items */
+.submenu-item {
+  display: block;
+  color: white;
+  text-decoration: none;
+  cursor: pointer;
+  border: none;
+  background: none;
+  padding: 0;
+  font-weight: bold;
+  font-size: 1.2rem;
+  mix-blend-mode: difference;
+  margin: 0;
+  text-align: left;
+}
+
+/* Focus states for accessibility */
+.header-menu:focus {
+  outline: 2px solid rgba(102, 126, 234, 0.5);
+  outline-offset: 2px;
+}
+
+/* === Remove old colai-label styles and replace === */
+/* Remove or comment out the existing .colai-label styles */

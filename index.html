@@ -8,9 +8,20 @@
 </head>
 <body>
 
-  <!-- Sidebar Label -->
+  <!-- Enhanced Header Menu -->
   <div class="sidebar-container">
-    <div class="colai-label" id="colaiLabel">damnpictures</div>
+    <div class="header-menu logged-out" id="headerMenu" tabindex="0">
+      <!-- Primary label (what shows normally) -->
+      <div class="primary-label" id="primaryLabel">damnpictures</div>
+      
+      <!-- Hover label (what shows on hover) -->
+      <div class="hover-label" id="hoverLabel">log in / sign up</div>
+      
+      <!-- Submenu (shows for logged in users) -->
+      <div class="submenu" id="submenu" style="display: none;">
+        <button class="submenu-item" id="logoutMenuItem">logout</button>
+      </div>
+    </div>
   </div>
 
   <!-- Main Gallery -->
@@ -18,7 +29,7 @@
     <!-- Slides will be injected by router.js -->
   </div>
 
-  <!-- Updated Login Modal with error containers -->
+  <!-- Updated Login Modal - Third party buttons commented out -->
 <div id="loginModal" class="modal hidden">
   <div class="modal-content">
     <div class="modal-header">
@@ -42,18 +53,21 @@
         </div>
         <button type="submit" class="primary-btn" id="loginButton">login</button>
         <div class="signup-link" id="signupLink">signup</div>
+        
+        <!-- COMMENTED OUT: Third party auth buttons
         <div class="divider">or</div>
         <div class="third-party-buttons">
           <button type="button" class="third-party google">Continue with Google</button>
           <button type="button" class="third-party facebook">Continue with Facebook</button>
           <button type="button" class="third-party apple">Continue with Apple</button>
         </div>
+        -->
       </form>
     </div>
   </div>
 </div>
 
-<!-- Updated Signup Modal with validation -->
+<!-- Updated Signup Modal - Third party buttons commented out -->
 <div id="signupModal" class="modal hidden">
   <div class="modal-content">
     <div class="modal-header">
@@ -83,6 +97,15 @@
           <div id="signupPasswordError" class="field-error"></div>
         </div>
         <button type="submit" class="primary-btn" id="signupButton">sign up</button>
+        
+        <!-- COMMENTED OUT: Third party auth buttons
+        <div class="divider">or</div>
+        <div class="third-party-buttons">
+          <button type="button" class="third-party google">Continue with Google</button>
+          <button type="button" class="third-party facebook">Continue with Facebook</button>
+          <button type="button" class="third-party apple">Continue with Apple</button>
+        </div>
+        -->
       </form>
     </div>
   </div>
