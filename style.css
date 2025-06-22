@@ -54,7 +54,7 @@ body {
   cursor: pointer;
   user-select: none;
   position: relative;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.7);
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.3);
 }
 
 /* Primary and hover labels */
