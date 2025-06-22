@@ -1,4 +1,4 @@
-// Clean uploadModal.js with edit mode functionality
+// Clean uploadModal.js with fixed modal controls
 
 class ImageUploadManager {
   constructor() {
@@ -84,47 +84,106 @@ class ImageUploadManager {
     document.body.appendChild(confirmModal);
 
     // Setup event listeners for confirmation modal
-    document.getElementById('closeConfirmModal').addEventListener('click', () => {
-      this.hideConfirmationModal();
-    });
+    this.setupConfirmationModalListeners();
+  }
 
-    document.getElementById('cancelUploadBtn').addEventListener('click', () => {
-      this.cancelUpload();
-    });
-
-    document.getElementById('proceedUploadBtn').addEventListener('click', () => {
-      this.proceedWithUpload();
-    });
-
-    // Close on escape key
-    confirmModal.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') {
+  setupConfirmationModalListeners() {
+    console.log('🔗 Setting up confirmation modal listeners...');
+    
+    // Close button
+    const closeConfirmModal = document.getElementById('closeConfirmModal');
+    if (closeConfirmModal) {
+      console.log('✅ Found confirmation modal close button');
+      closeConfirmModal.addEventListener('click', (e) => {
+        console.log('🔴 Confirmation modal close button clicked');
+        e.preventDefault();
+        e.stopPropagation();
         this.hideConfirmationModal();
-      }
-    });
+      });
+    } else {
+      console.error('❌ Confirmation modal close button not found');
+    }
+
+    // Cancel button
+    const cancelUploadBtn = document.getElementById('cancelUploadBtn');
+    if (cancelUploadBtn) {
+      console.log('✅ Found cancel upload button');
+      cancelUploadBtn.addEventListener('click', (e) => {
+        console.log('🔴 Cancel upload button clicked');
+        e.preventDefault();
+        e.stopPropagation();
+        this.cancelUpload();
+      });
+    } else {
+      console.error('❌ Cancel upload button not found');
+    }
+
+    // Proceed button
+    const proceedUploadBtn = document.getElementById('proceedUploadBtn');
+    if (proceedUploadBtn) {
+      console.log('✅ Found proceed upload button');
+      proceedUploadBtn.addEventListener('click', (e) => {
+        console.log('🔴 Proceed upload button clicked');
+        e.preventDefault();
+        e.stopPropagation();
+        this.proceedWithUpload();
+      });
+    } else {
+      console.error('❌ Proceed upload button not found');
+    }
+
+    // Click outside to close
+    const confirmModal = document.getElementById('uploadConfirmModal');
+    if (confirmModal) {
+      console.log('✅ Found confirmation modal for click outside');
+      confirmModal.addEventListener('click', (e) => {
+        if (e.target === confirmModal) {
+          console.log('🔴 Clicked outside confirmation modal');
+          this.hideConfirmationModal();
+        }
+      });
+
+      // Escape key
+      confirmModal.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+          console.log('🔴 Escape pressed in confirmation modal');
+          this.hideConfirmationModal();
+        }
+      });
+      console.log('✅ Confirmation modal escape listener added');
+    } else {
+      console.error('❌ Confirmation modal not found for click outside');
+    }
   }
 
   setupEventListeners() {
     // File input change
-    this.fileInput.addEventListener('change', (e) => {
-      this.handleFiles(e.target.files);
-      this.updateUploadButton();
-    });
+    if (this.fileInput) {
+      this.fileInput.addEventListener('change', (e) => {
+        this.handleFiles(e.target.files);
+        this.updateUploadButton();
+      });
+    }
 
     // Upload button click - Show confirmation
-    this.uploadBtn.addEventListener('click', () => {
-      if (this.pendingFiles.length > 0) {
-        this.showUploadConfirmation();
-      } else {
-        this.fileInput.click();
-      }
-    });
+    if (this.uploadBtn) {
+      this.uploadBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        if (this.pendingFiles.length > 0) {
+          this.showUploadConfirmation();
+        } else {
+          this.fileInput.click();
+        }
+      });
+    }
 
     // Drag and drop
     this.setupDragAndDrop();
   }
 
   setupDragAndDrop() {
+    if (!this.dropzone) return;
+
     const preventDefaults = (e) => {
       e.preventDefault();
       e.stopPropagation();
@@ -136,13 +195,17 @@ class ImageUploadManager {
 
     ['dragenter', 'dragover'].forEach(eventName => {
       this.dropzone.addEventListener(eventName, () => {
-        this.uploadSection.classList.add('drag-over');
+        if (this.uploadSection) {
+          this.uploadSection.classList.add('drag-over');
+        }
       });
     });
 
     ['dragleave', 'drop'].forEach(eventName => {
       this.dropzone.addEventListener(eventName, () => {
-        this.uploadSection.classList.remove('drag-over');
+        if (this.uploadSection) {
+          this.uploadSection.classList.remove('drag-over');
+        }
       });
     });
 
@@ -287,7 +350,9 @@ class ImageUploadManager {
 
   updateUploadButton() {
     const fileCount = this.pendingFiles.length;
-    const uploadBtnContainer = this.uploadBtn.parentElement;
+    const uploadBtnContainer = this.uploadBtn?.parentElement;
+    
+    if (!this.uploadBtn || !uploadBtnContainer) return;
     
     if (fileCount > 0) {
       // Show both Review and Quick Upload buttons
@@ -303,7 +368,8 @@ class ImageUploadManager {
         quickUploadBtn = document.createElement('button');
         quickUploadBtn.id = 'quickUploadBtn';
         quickUploadBtn.className = 'quick-upload-btn';
-        quickUploadBtn.addEventListener('click', () => {
+        quickUploadBtn.addEventListener('click', (e) => {
+          e.preventDefault();
           this.proceedWithUpload();
         });
         uploadBtnContainer.appendChild(quickUploadBtn);
@@ -334,6 +400,8 @@ class ImageUploadManager {
     const confirmModal = document.getElementById('uploadConfirmModal');
     const photoGrid = document.getElementById('confirmPhotoGrid');
     const proceedBtn = document.getElementById('proceedUploadBtn');
+
+    if (!confirmModal || !photoGrid || !proceedBtn) return;
 
     proceedBtn.textContent = `Upload ${this.pendingFiles.length} Photo${this.pendingFiles.length > 1 ? 's' : ''}`;
 
@@ -432,13 +500,22 @@ class ImageUploadManager {
   }
 
   hideConfirmationModal() {
+    console.log('🔴 Hiding confirmation modal');
     const confirmModal = document.getElementById('uploadConfirmModal');
-    confirmModal.classList.add('hidden');
+    if (confirmModal) {
+      confirmModal.classList.add('hidden');
+      console.log('✅ Confirmation modal hidden successfully');
+    } else {
+      console.error('❌ Confirmation modal not found');
+    }
   }
 
   cancelUpload() {
+    console.log('🔴 Canceling upload');
     this.pendingFiles = [];
-    this.fileInput.value = '';
+    if (this.fileInput) {
+      this.fileInput.value = '';
+    }
     this.hideConfirmationModal();
     this.resetUploadSection();
     this.updateUploadButton();
@@ -447,6 +524,7 @@ class ImageUploadManager {
     if (quickUploadBtn) {
       quickUploadBtn.style.display = 'none';
     }
+    console.log('✅ Upload canceled successfully');
   }
 
   async proceedWithUpload() {
@@ -469,8 +547,10 @@ class ImageUploadManager {
     const files = this.pendingFiles;
     if (files.length === 0) return;
 
-    this.uploadBtn.disabled = true;
-    this.uploadBtn.textContent = 'Uploading...';
+    if (this.uploadBtn) {
+      this.uploadBtn.disabled = true;
+      this.uploadBtn.textContent = 'Uploading...';
+    }
     this.showProgress(true);
 
     const results = { successful: [], failed: [] };
@@ -480,7 +560,9 @@ class ImageUploadManager {
       const progress = ((i + 1) / files.length) * 100;
       
       this.updateProgress(progress);
-      this.uploadBtn.textContent = `Uploading... (${i + 1}/${files.length})`;
+      if (this.uploadBtn) {
+        this.uploadBtn.textContent = `Uploading... (${i + 1}/${files.length})`;
+      }
 
       try {
         const uploadResult = await supabaseHelpers.uploadPhoto(file, userProfile.username);
@@ -513,7 +595,9 @@ class ImageUploadManager {
     }
 
     this.showProgress(false);
-    this.uploadBtn.disabled = false;
+    if (this.uploadBtn) {
+      this.uploadBtn.disabled = false;
+    }
     this.updateUploadButton();
 
     if (results.failed.length > 0) {
@@ -521,7 +605,9 @@ class ImageUploadManager {
       alert(`Failed to upload: ${failedNames}`);
     } else {
       this.pendingFiles = [];
-      this.fileInput.value = '';
+      if (this.fileInput) {
+        this.fileInput.value = '';
+      }
       this.resetUploadSection();
       
       const quickUploadBtn = document.getElementById('quickUploadBtn');
@@ -546,16 +632,20 @@ class ImageUploadManager {
   }
 
   showProgress(show) {
-    if (show) {
-      this.progressBar.style.display = 'block';
-    } else {
-      this.progressBar.style.display = 'none';
-      this.updateProgress(0);
+    if (this.progressBar) {
+      if (show) {
+        this.progressBar.style.display = 'block';
+      } else {
+        this.progressBar.style.display = 'none';
+        this.updateProgress(0);
+      }
     }
   }
 
   updateProgress(percent) {
-    this.progressBarFill.style.width = `${percent}%`;
+    if (this.progressBarFill) {
+      this.progressBarFill.style.width = `${percent}%`;
+    }
   }
 
   async loadUserPhotos() {
@@ -714,7 +804,8 @@ class ImageUploadManager {
     
     if (!editToggleBtn) return;
     
-    editToggleBtn.addEventListener('click', () => {
+    editToggleBtn.addEventListener('click', (e) => {
+      e.preventDefault();
       this.editMode = !this.editMode;
       
       if (this.editMode) {
@@ -725,7 +816,9 @@ class ImageUploadManager {
         editToggleBtn.style.color = 'white';
         
         // Show bulk actions
-        bulkActions.style.display = 'block';
+        if (bulkActions) {
+          bulkActions.style.display = 'block';
+        }
         
         // Show checkboxes
         photoCheckboxes.forEach(checkbox => {
@@ -748,7 +841,9 @@ class ImageUploadManager {
         editToggleBtn.style.color = '#667eea';
         
         // Hide bulk actions
-        bulkActions.style.display = 'none';
+        if (bulkActions) {
+          bulkActions.style.display = 'none';
+        }
         
         // Hide checkboxes
         photoCheckboxes.forEach(checkbox => {
@@ -778,18 +873,20 @@ class ImageUploadManager {
     this.updateBulkControls();
 
     // Select all/none functionality
-    selectAllCheckbox?.addEventListener('change', (e) => {
-      const isChecked = e.target.checked;
-      photoCheckboxes.forEach(checkbox => {
-        checkbox.checked = isChecked;
-        if (isChecked) {
-          this.selectedPhotos.add(checkbox.dataset.photoId);
-        } else {
-          this.selectedPhotos.delete(checkbox.dataset.photoId);
-        }
+    if (selectAllCheckbox) {
+      selectAllCheckbox.addEventListener('change', (e) => {
+        const isChecked = e.target.checked;
+        photoCheckboxes.forEach(checkbox => {
+          checkbox.checked = isChecked;
+          if (isChecked) {
+            this.selectedPhotos.add(checkbox.dataset.photoId);
+          } else {
+            this.selectedPhotos.delete(checkbox.dataset.photoId);
+          }
+        });
+        this.updateBulkControls();
       });
-      this.updateBulkControls();
-    });
+    }
 
     // Individual photo selection
     photoCheckboxes.forEach(checkbox => {
@@ -799,16 +896,21 @@ class ImageUploadManager {
           this.selectedPhotos.add(photoId);
         } else {
           this.selectedPhotos.delete(photoId);
-          selectAllCheckbox.checked = false;
+          if (selectAllCheckbox) {
+            selectAllCheckbox.checked = false;
+          }
         }
         this.updateBulkControls();
       });
     });
 
     // Delete selected photos
-    deleteSelectedBtn?.addEventListener('click', () => {
-      this.deleteSelectedPhotos();
-    });
+    if (deleteSelectedBtn) {
+      deleteSelectedBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        this.deleteSelectedPhotos();
+      });
+    }
   }
 
   updateBulkControls() {
@@ -845,7 +947,6 @@ class ImageUploadManager {
 
     const deleteSelectedBtn = document.getElementById('deleteSelectedBtn');
     const editToggleBtn = document.getElementById('editToggleBtn');
-    
     
     if (editToggleBtn) {
       editToggleBtn.disabled = true;
