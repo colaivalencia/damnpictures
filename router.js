@@ -60,16 +60,26 @@ class DamnPicturesRouter {
   }
 
   async waitForDependencies(callback) {
-    // Simple wait for required dependencies
-    const checkReady = () => {
-      if (window.supabaseHelpers && window.supabase) {
-        callback()
-      } else {
-        setTimeout(checkReady, 100)
-      }
+  const maxAttempts = 10;
+  let attempts = 0;
+  
+  const checkReady = async () => {
+    if (window.supabase && window.supabaseHelpers) {
+      console.log('✅ All dependencies loaded');
+      callback();
+    } else if (attempts < maxAttempts) {
+      attempts++;
+      console.log(`⌛ Waiting for dependencies (attempt ${attempts})...`);
+      await new Promise(resolve => setTimeout(resolve, 300));
+      checkReady();
+    } else {
+      console.error('❌ Dependencies not loaded after max attempts');
+      this.showErrorState();
     }
-    checkReady()
-  }
+  };
+  
+  checkReady();
+}
 
   async handleRoute() {
     const path = window.location.pathname
