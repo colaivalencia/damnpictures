@@ -91,8 +91,10 @@ class ImageUploadManager {
   }
 
   setupModalOpenListener() {
-    const uploadModal = document.getElementById('uploadModal');
-    if (uploadModal) {
+  const uploadModal = document.getElementById('uploadModal');
+  if (uploadModal) {
+    // Add delay to prevent triggering during page initialization
+    setTimeout(() => {
       const observer = new MutationObserver((mutations) => {
         mutations.forEach((mutation) => {
           if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
@@ -109,8 +111,9 @@ class ImageUploadManager {
         attributes: true,
         attributeFilter: ['class']
       });
-    }
+    }, 1000); // Wait 1 second after page load before starting to observe
   }
+}
 
   setupEventListeners() {
     if (this.fileInput) {
