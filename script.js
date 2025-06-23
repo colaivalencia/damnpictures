@@ -1,10 +1,11 @@
-// Simple AuthManager - Back to Basics
+// Fixed AuthManager - Proper auth state checking and header updates
 class AuthManager {
   constructor() {
     this.currentUser = null;
     this.currentUserProfile = null;
     this.usernameCheckTimeout = null;
     this.headerMenuManager = null;
+    this.authStateChecked = false;
     this.init();
   }
 
@@ -23,14 +24,48 @@ class AuthManager {
       await new Promise(resolve => setTimeout(resolve, 100));
     }
     
-    // Now set up the auth state listener
+    // Check current auth state immediately on page load
+    await this.checkCurrentAuthState();
+    
+    // Now set up the auth state listener for future changes
     window.supabase.auth.onAuthStateChange((event, session) => {
+      console.log('🔄 Auth state change event:', event);
+      
       if (event === 'SIGNED_IN' && session) {
         this.handleUserSignedIn(session.user);
       } else if (event === 'SIGNED_OUT') {
         this.handleUserSignedOut();
       }
     });
+  }
+
+  async checkCurrentAuthState() {
+    try {
+      console.log('🔍 Checking current auth state...');
+      
+      const { data: { session }, error } = await window.supabase.auth.getSession();
+      
+      if (error) {
+        console.error('❌ Error getting session:', error);
+        this.handleUserSignedOut();
+        return;
+      }
+
+      if (session && session.user) {
+        console.log('✅ Found existing session for:', session.user.email);
+        await this.handleUserSignedIn(session.user);
+      } else {
+        console.log('❌ No active session found');
+        this.handleUserSignedOut();
+      }
+      
+      this.authStateChecked = true;
+      
+    } catch (error) {
+      console.error('❌ Error checking auth state:', error);
+      this.handleUserSignedOut();
+      this.authStateChecked = true;
+    }
   }
 
   initializeHeaderMenu() {
@@ -534,6 +569,7 @@ class AuthManager {
   // === USER STATE HANDLERS ===
 
   async handleUserSignedIn(user) {
+    console.log('🔐 Processing user sign in:', user.email);
     this.currentUser = user;
 
     try {
@@ -556,7 +592,7 @@ class AuthManager {
 
       this.currentUserProfile = profile;
 
-      // Update UI
+      // Update UI elements
       const loggedInUsername = document.getElementById('loggedInUsername');
       const userAvatar = document.getElementById('userAvatar');
 
@@ -567,7 +603,7 @@ class AuthManager {
         userAvatar.textContent = profile.username[0]?.toUpperCase() || 'U';
       }
 
-      // Update header menu
+      // Update header menu - CRITICAL FIX
       if (this.headerMenuManager) {
         this.headerMenuManager.onUserLogin(profile.username);
       }
@@ -575,7 +611,7 @@ class AuthManager {
       // Close modals
       this.closeAllModals();
 
-      console.log('User signed in:', profile.username);
+      console.log('✅ User signed in successfully:', profile.username);
 
     } catch (error) {
       console.error('Error handling sign in:', error);
@@ -583,19 +619,21 @@ class AuthManager {
   }
 
   handleUserSignedOut() {
+    console.log('🔐 Processing user sign out');
     this.currentUser = null;
     this.currentUserProfile = null;
+    
     const uploadModal = document.getElementById('uploadModal');
     if (uploadModal) {
       uploadModal.classList.add('hidden');
     }
     
-    // Update header menu
+    // Update header menu - CRITICAL FIX
     if (this.headerMenuManager) {
       this.headerMenuManager.onUserLogout();
     }
     
-    console.log('User signed out');
+    console.log('✅ User signed out successfully');
   }
 
   // === MODAL CONTROLS ===
@@ -704,7 +742,7 @@ class AuthManager {
   }
 }
 
-// Header Menu Manager - Simple Version
+// Header Menu Manager - Fixed to handle auth state properly
 class HeaderMenuManager {
   constructor() {
     this.headerMenu = null;
@@ -714,6 +752,7 @@ class HeaderMenuManager {
     this.logoutMenuItem = null;
     this.isLoggedIn = false;
     this.currentViewingUser = null;
+    this.currentLoggedInUser = null;
     this.init();
   }
 
@@ -728,7 +767,7 @@ class HeaderMenuManager {
     // Set up event listeners
     this.setupEventListeners();
     
-    // Set initial state (will be updated by router)
+    // Set initial state
     this.updateMenuState(false, null);
   }
 
@@ -777,7 +816,10 @@ class HeaderMenuManager {
 
   // Update menu state based on authentication and current user
   updateMenuState(isLoggedIn, loggedInUsername) {
+    console.log('🔄 Updating header menu state:', { isLoggedIn, loggedInUsername, currentViewingUser: this.currentViewingUser });
+    
     this.isLoggedIn = isLoggedIn;
+    this.currentLoggedInUser = loggedInUsername;
     
     // Get current viewing user from router
     const currentPath = window.location.pathname;
@@ -807,6 +849,9 @@ class HeaderMenuManager {
       if (this.submenu) {
         this.submenu.style.display = '';
       }
+      
+      console.log('✅ Header updated for logged in user:', loggedInUsername);
+      
     } else {
       // Logged out state - should log in
       if (this.headerMenu) {
@@ -818,28 +863,34 @@ class HeaderMenuManager {
       if (this.submenu) {
         this.submenu.style.display = 'none';
       }
+      
+      console.log('✅ Header updated for logged out state');
     }
   }
 
   // Method to be called when user logs in
   onUserLogin(username) {
+    console.log('📝 Header menu: User logged in -', username);
     this.updateMenuState(true, username);
   }
 
   // Method to be called when user logs out
   onUserLogout() {
+    console.log('📝 Header menu: User logged out');
     this.updateMenuState(false, null);
   }
 
   // Method to be called when viewing user changes (from router)
   onViewingUserChange(username) {
+    console.log('📝 Header menu: Viewing user changed -', username);
     this.currentViewingUser = username;
-    this.updateMenuState(this.isLoggedIn, this.isLoggedIn ? window.authManager?.getCurrentUserProfile()?.username : null);
+    this.updateMenuState(this.isLoggedIn, this.currentLoggedInUser);
   }
 }
 
-// Initialize auth manager - SIMPLE VERSION
+// Initialize auth manager - ENHANCED VERSION
 document.addEventListener('DOMContentLoaded', () => {
+  console.log('🚀 Initializing auth manager...');
   window.authManager = new AuthManager();
 
   // Make functions available globally for compatibility

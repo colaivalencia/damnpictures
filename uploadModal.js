@@ -1,4 +1,4 @@
-// Optimized uploadModal.js - Artwork-friendly with 72 photo limit
+// Fixed uploadModal.js - Better auth state checking
 class ImageUploadManager {
   constructor() {
     // Photo limits
@@ -52,24 +52,33 @@ class ImageUploadManager {
   }
 
   updateUserSettings() {
-    const userProfile = window.getCurrentUserProfile();
-    if (userProfile && userProfile.username) {
-      const username = userProfile.username;
-      
-      const customLimit = this.userUploadLimits[username];
-      this.maxFileSize = customLimit || this.defaultMaxFileSize;
-      this.currentUserIsLossless = this.losslessUsers.has(username);
-      
-      const customResolution = this.userResolutionLimits[username];
-      this.maxDimension = customResolution !== undefined ? customResolution : this.defaultMaxDimension;
-      
-      console.log(`🎛️ User settings for ${username}:`);
-      console.log(`   File size limit: ${this.formatFileSize(this.maxFileSize)}`);
-      console.log(`   Lossless uploads: ${this.currentUserIsLossless ? 'YES' : 'NO'}`);
-      console.log(`   Resolution limit: ${this.maxDimension ? this.maxDimension + 'px' : 'UNLIMITED'}`);
-      
-      this.updateUploadSectionText();
+    // FIXED: Better auth state checking
+    if (!window.authManager || !window.authManager.isLoggedIn()) {
+      console.log('🔒 User not logged in, skipping user settings update');
+      return;
     }
+
+    const userProfile = window.authManager.getCurrentUserProfile();
+    if (!userProfile || !userProfile.username) {
+      console.log('🔒 No user profile found, skipping user settings update');
+      return;
+    }
+
+    const username = userProfile.username;
+    
+    const customLimit = this.userUploadLimits[username];
+    this.maxFileSize = customLimit || this.defaultMaxFileSize;
+    this.currentUserIsLossless = this.losslessUsers.has(username);
+    
+    const customResolution = this.userResolutionLimits[username];
+    this.maxDimension = customResolution !== undefined ? customResolution : this.defaultMaxDimension;
+    
+    console.log(`🎛️ User settings for ${username}:`);
+    console.log(`   File size limit: ${this.formatFileSize(this.maxFileSize)}`);
+    console.log(`   Lossless uploads: ${this.currentUserIsLossless ? 'YES' : 'NO'}`);
+    console.log(`   Resolution limit: ${this.maxDimension ? this.maxDimension + 'px' : 'UNLIMITED'}`);
+    
+    this.updateUploadSectionText();
   }
 
   updateUploadSectionText() {
@@ -91,29 +100,34 @@ class ImageUploadManager {
   }
 
   setupModalOpenListener() {
-  const uploadModal = document.getElementById('uploadModal');
-  if (uploadModal) {
-    // Add delay to prevent triggering during page initialization
-    setTimeout(() => {
-      const observer = new MutationObserver((mutations) => {
-        mutations.forEach((mutation) => {
-          if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
-            const modal = mutation.target;
-            if (!modal.classList.contains('hidden') && window.isLoggedIn() && window.getCurrentUserProfile()) {
-              this.updateUserSettings();
-              this.loadUserPhotos();
+    const uploadModal = document.getElementById('uploadModal');
+    if (uploadModal) {
+      // Add delay to prevent triggering during page initialization
+      setTimeout(() => {
+        const observer = new MutationObserver((mutations) => {
+          mutations.forEach((mutation) => {
+            if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+              const modal = mutation.target;
+              if (!modal.classList.contains('hidden')) {
+                // FIXED: Better auth state checking with delay
+                setTimeout(() => {
+                  if (window.authManager && window.authManager.isLoggedIn()) {
+                    this.updateUserSettings();
+                    this.loadUserPhotos();
+                  }
+                }, 200); // Small delay to ensure auth state is ready
+              }
             }
-          }
+          });
         });
-      });
-      
-      observer.observe(uploadModal, {
-        attributes: true,
-        attributeFilter: ['class']
-      });
-    }, 1000); // Wait 1 second after page load before starting to observe
+        
+        observer.observe(uploadModal, {
+          attributes: true,
+          attributeFilter: ['class']
+        });
+      }, 1000); // Wait 1 second after page load before starting to observe
+    }
   }
-}
 
   setupEventListeners() {
     if (this.fileInput) {
@@ -362,9 +376,13 @@ class ImageUploadManager {
 
   // OPTIMIZED PARALLEL UPLOAD
   async uploadFiles() {
-    if (!window.isLoggedIn() || this.isUploading) return;
+    // FIXED: Better auth checking
+    if (!window.authManager || !window.authManager.isLoggedIn() || this.isUploading) {
+      console.log('🔒 Cannot upload: not logged in or already uploading');
+      return;
+    }
 
-    const userProfile = window.getCurrentUserProfile();
+    const userProfile = window.authManager.getCurrentUserProfile();
     if (!userProfile) {
       this.showError('User profile not found');
       return;
@@ -452,10 +470,17 @@ class ImageUploadManager {
   }
 
   async loadUserPhotos() {
-    const userProfile = window.getCurrentUserProfile();
+    // FIXED: Better auth checking
+    if (!window.authManager || !window.authManager.isLoggedIn()) {
+      console.log('🔒 Cannot load photos: not logged in');
+      return;
+    }
+
+    const userProfile = window.authManager.getCurrentUserProfile();
     if (!userProfile) {
-  return; // Just return immediately, don't do anything
-}
+      console.log('🔒 Cannot load photos: no user profile');
+      return;
+    }
 
     try {
       const { data: photos, error } = await supabaseHelpers.getUserPhotos(userProfile.username);
@@ -972,7 +997,6 @@ class ImageUploadManager {
   }
 
   showError(message) {
-    // Simple toast notification
     this.showToast(message, 'error');
   }
 
@@ -1006,6 +1030,7 @@ class ImageUploadManager {
       max-width: 300px;
       animation: slideInRight 0.3s ease-out;
       cursor: pointer;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
     `;
 
     const colors = {
