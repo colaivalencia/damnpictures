@@ -8,16 +8,18 @@ class ImageUploadManager {
     
     // User-specific upload limits (in bytes)
     this.userUploadLimits = {
-      'eldricarpilleda': 50 * 1024 * 1024, // 50MB for eldricarpilleda (lossless)
+      'eldricarpilleda': 50 * 1024 * 1024,
+      'colaivalencia': 50 * 1024 * 1024, // 50MB for eldricarpilleda (lossless)
     };
     
     // User-specific lossless upload permissions
-    this.losslessUsers = new Set(['eldricarpilleda']);
+    this.losslessUsers = new Set(['eldricarpilleda', 'colaivalencia']);
     
     // User-specific resolution limits
     this.userResolutionLimits = {
       'eldricarpilleda': null, // null = no resolution limit
       // Other users will use the default 2048px limit
+      'colaivalencia': null,
     };
     
     this.defaultMaxDimension = 2048;
