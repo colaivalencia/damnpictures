@@ -1,4 +1,4 @@
-// Minimal fix router.js - Just fix the refresh issue
+// Simple router that actually works
 class DamnPicturesRouter {
   constructor() {
     this.currentUser = null
@@ -9,23 +9,20 @@ class DamnPicturesRouter {
   init() {
     window.addEventListener('DOMContentLoaded', () => {
       this.waitForDependencies(() => {
-        // Simple check: if we're on a user page and it's a hard refresh, redirect
-        const path = window.location.pathname;
-        const isUserPage = path.startsWith('/u/');
-        
-        // Check for page refresh by looking at performance navigation
+        // Check if this is a page refresh
         const isRefresh = performance.getEntriesByType('navigation')[0]?.type === 'reload';
         
-        if (isUserPage && isRefresh) {
-          console.log('Page refresh detected - redirecting to random user');
+        if (isRefresh) {
+          // Any refresh goes to random user
+          console.log('Page refresh - going to random user');
           this.redirectToRandomUser();
         } else {
+          // Normal navigation - handle the current route
           this.handleRoute();
         }
       });
     });
     
-    // Handle browser back/forward
     window.addEventListener('popstate', () => this.handleRoute());
   }
 
@@ -42,7 +39,7 @@ class DamnPicturesRouter {
 
   async handleRoute() {
     const path = window.location.pathname
-    console.log('Current path:', path)
+    console.log('Handling route:', path)
 
     try {
       if (path === '/' || path === '') {
@@ -60,11 +57,10 @@ class DamnPicturesRouter {
         return
       }
 
-      // Fallback - redirect to random
       await this.redirectToRandomUser()
       
     } catch (error) {
-      console.error('Route handling error:', error)
+      console.error('Route error:', error)
       this.showErrorState()
     }
   }
@@ -73,35 +69,23 @@ class DamnPicturesRouter {
     if (this.isRedirecting) return
     
     this.isRedirecting = true
-    console.log('Redirecting to random user...')
 
     try {
       const { data: users, error } = await window.supabaseHelpers.getUsersWithPhotos()
       
       if (error || !users || users.length === 0) {
-        console.error('No users with photos found:', error)
-        this.showEmptyState()
+        this.showErrorState()
         return
       }
 
-      // Filter out current user
-      const currentPath = window.location.pathname
-      const currentUsername = currentPath.startsWith('/u/') ? currentPath.split('/u/')[1] : null
-      const availableUsers = currentUsername ? 
-        users.filter(user => user.username !== currentUsername) : users
-
-      const usersToChooseFrom = availableUsers.length > 0 ? availableUsers : users
-      const randomUser = usersToChooseFrom[Math.floor(Math.random() * usersToChooseFrom.length)]
+      const randomUser = users[Math.floor(Math.random() * users.length)]
       const targetUrl = `/u/${randomUser.username}`
       
-      console.log('Redirecting to:', targetUrl)
-      
-      // Use history.pushState and load gallery
       window.history.pushState({}, '', targetUrl)
       await this.loadUserGallery(randomUser.username)
       
     } catch (error) {
-      console.error('Error redirecting to random user:', error)
+      console.error('Redirect error:', error)
       this.showErrorState()
     } finally {
       this.isRedirecting = false
@@ -109,39 +93,32 @@ class DamnPicturesRouter {
   }
 
   async loadUserGallery(username) {
-    console.log('Loading gallery for user:', username)
-    
     try {
       this.currentUser = username
-      
-      // Load user's photos FIRST
+
       const { data: photos, error } = await window.supabaseHelpers.getUserPhotos(username)
       
       if (error) {
-        console.error('Error loading photos:', error)
         this.showErrorState()
         return
       }
 
       if (!photos || photos.length === 0) {
-        console.log('No photos found for user:', username)
         this.showEmptyUserState(username)
         return
       }
 
-      // Only update UI AFTER photos are successfully loaded
+      // Update UI only after photos loaded successfully
       document.title = `${username} - damnpictures`
       
-      // Update header menu
       if (window.authManager?.headerMenuManager) {
         window.authManager.headerMenuManager.onViewingUserChange(username)
       }
 
-      // Populate gallery
       this.populateGallery(photos)
       
     } catch (error) {
-      console.error('Error loading user gallery:', error)
+      console.error('Load gallery error:', error)
       this.showErrorState()
     }
   }
@@ -167,7 +144,6 @@ class DamnPicturesRouter {
       `https://drive.google.com/uc?export=view&id=${photo.drive_file_id}`,
       `https://drive.google.com/thumbnail?id=${photo.drive_file_id}&sz=w2000`,
       `https://lh3.googleusercontent.com/d/${photo.drive_file_id}`,
-      `https://drive.google.com/file/d/${photo.drive_file_id}/view`
     ]
   }
 
@@ -182,59 +158,37 @@ class DamnPicturesRouter {
     shuffledPhotos.forEach((photo, index) => {
       const slide = document.createElement('div')
       slide.className = 'slide'
-      slide.id = `slide-${index}`
 
       const img = document.createElement('img')
       
       const primaryUrl = this.getOptimizedImageUrl(photo)
       const backupUrls = this.getBackupImageUrls(photo)
       
-      if (!primaryUrl) {
-        console.error('No valid URL found for photo:', photo)
-        return
-      }
+      if (!primaryUrl) return
       
       img.src = primaryUrl
       img.alt = photo.original_name || photo.filename
       
       let currentFallbackIndex = 0
       img.onerror = () => {
-        console.error(`Failed to load image: ${photo.filename}, URL: ${img.src}`)
-        
         if (currentFallbackIndex < backupUrls.length) {
-          console.log(`Trying fallback ${currentFallbackIndex + 1}:`, backupUrls[currentFallbackIndex])
           img.src = backupUrls[currentFallbackIndex]
           currentFallbackIndex++
         } else {
-          console.error('All fallback URLs failed for:', photo.filename)
           slide.innerHTML = `
-            <div style="
-              height: 100vh; 
-              display: flex; 
-              align-items: center; 
-              justify-content: center; 
-              background: #222; 
-              color: #666;
-              flex-direction: column;
-              gap: 1rem;
-            ">
-              <div style="font-size: 4rem;">📷</div>
-              <div>Image unavailable</div>
-              <div style="font-size: 0.8rem; opacity: 0.6;">${photo.original_name || photo.filename}</div>
+            <div style="height: 100vh; display: flex; align-items: center; justify-content: center; background: #222; color: #666;">
+              <div style="text-align: center;">
+                <div style="font-size: 4rem;">📷</div>
+                <div>Image unavailable</div>
+              </div>
             </div>
           `
         }
       }
 
-      img.onload = () => {
-        console.log(`✅ Successfully loaded: ${photo.filename}`)
-      }
-
       slide.appendChild(img)
       gallery.appendChild(slide)
     })
-
-    console.log(`Loaded ${shuffledPhotos.length} photos for ${this.currentUser}`)
   }
 
   shuffleArray(array) {
@@ -246,21 +200,6 @@ class DamnPicturesRouter {
     return shuffled
   }
 
-  showEmptyState() {
-    const gallery = document.getElementById('gallery')
-    if (!gallery) return
-
-    gallery.innerHTML = `
-      <div class="slide" style="display: flex; align-items: center; justify-content: center; color: #666; text-align: center;">
-        <div>
-          <div style="font-size: 4rem; margin-bottom: 1rem;">📷</div>
-          <div style="font-size: 1.5rem; margin-bottom: 0.5rem;">No photos yet</div>
-          <div style="font-size: 1rem;">Be the first to upload!</div>
-        </div>
-      </div>
-    `
-  }
-
   showEmptyUserState(username) {
     const gallery = document.getElementById('gallery')
     if (!gallery) return
@@ -270,7 +209,6 @@ class DamnPicturesRouter {
         <div>
           <div style="font-size: 4rem; margin-bottom: 1rem;">📷</div>
           <div style="font-size: 1.5rem; margin-bottom: 0.5rem;">${username} hasn't shared any photos yet</div>
-          <div style="font-size: 1rem;">Check back later!</div>
         </div>
       </div>
     `
@@ -284,19 +222,13 @@ class DamnPicturesRouter {
       <div class="slide" style="display: flex; align-items: center; justify-content: center; color: #ff4757; text-align: center;">
         <div>
           <div style="font-size: 4rem; margin-bottom: 1rem;">⚠️</div>
-          <div style="font-size: 1.5rem; margin-bottom: 0.5rem;">Something went wrong</div>
-          <div style="font-size: 1rem;">Try refreshing the page</div>
+          <div style="font-size: 1.5rem;">Something went wrong</div>
         </div>
       </div>
     `
   }
-
-  async goToRandomUser() {
-    await this.redirectToRandomUser()
-  }
 }
 
-// Initialize router when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
   window.router = new DamnPicturesRouter()
 })
