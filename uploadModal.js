@@ -49,7 +49,6 @@ class ImageUploadManager {
 
     this.setupEventListeners();
     this.setupModalOpenListener();
-    this.loadUserPhotos();
   }
 
   updateUserSettings() {
