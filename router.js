@@ -115,11 +115,11 @@ class DamnPicturesRouter {
       const { data: users, error } = await window.supabaseHelpers.getUsersWithPhotos()
       
       if (error || !users || users.length === 0) {
-        console.error('No users with photos found:', error)
-        this.showEmptyState()
-        this.isRedirecting = false
-        return
-      }
+  console.error('No users with photos found:', error)
+  console.log('Falling back to simple reload...')
+  window.location.reload()
+  return
+}
 
       // Filter out current user to ensure we get someone different
       const currentPath = window.location.pathname
