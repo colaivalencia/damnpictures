@@ -7,13 +7,23 @@ class DamnPicturesRouter {
   }
 
   init() {
-  // Simple initialization - no complex refresh detection
   window.addEventListener('DOMContentLoaded', () => {
-    this.waitForDependencies(() => this.handleRoute())
-  })
+    // Simple refresh detection: if we're on a user page and it's a page reload
+    const path = window.location.pathname;
+    const isUserPage = path.startsWith('/u/');
+    const isPageRefresh = performance.getEntriesByType('navigation')[0]?.type === 'reload';
+    
+    if (isUserPage && isPageRefresh) {
+      // Redirect to random user on refresh
+      this.waitForDependencies(() => this.redirectToRandomUser());
+    } else {
+      // Normal routing
+      this.waitForDependencies(() => this.handleRoute());
+    }
+  });
   
   // Handle browser back/forward
-  window.addEventListener('popstate', () => this.handleRoute())
+  window.addEventListener('popstate', () => this.handleRoute());
 }
 
 
