@@ -1,261 +1,213 @@
-// FIXED: Simplified AuthManager with better error handling
-
-console.log('🚀 Starting AuthManager initialization...');
-
+// Enhanced AuthManager with Simple Email Confirmation
 class AuthManager {
   constructor() {
     this.currentUser = null;
     this.currentUserProfile = null;
     this.usernameCheckTimeout = null;
     this.headerMenuManager = null;
-    this.isInitializing = true;
-    
-    console.log('📝 AuthManager constructor called');
     this.init();
   }
 
   init() {
-    try {
-      console.log('📝 AuthManager init() called');
-      
-      this.setupEventListeners();
-      this.setupValidation();
-      this.initializeHeaderMenu();
-      
-      // Simplified auth state listener
-      if (window.supabase) {
-        console.log('✅ Supabase found, setting up auth listener');
-        supabase.auth.onAuthStateChange((event, session) => {
-          console.log('🔄 Auth state changed:', event, session?.user?.email);
-          this.handleAuthStateChange(event, session);
-        });
-      } else {
-        console.error('❌ Supabase not available in init()');
-      }
-      
-      this.isInitializing = false;
-      console.log('✅ AuthManager initialization complete');
-      
-    } catch (error) {
-      console.error('❌ Error in AuthManager.init():', error);
-      this.isInitializing = false;
-    }
-  }
-
-  handleAuthStateChange(event, session) {
-    try {
+    this.setupEventListeners();
+    this.setupValidation();
+    this.initializeHeaderMenu();
+    
+    // Auth state listener
+    supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_IN' && session) {
-        console.log('✅ User signed in, handling...');
         this.handleUserSignedIn(session.user);
       } else if (event === 'SIGNED_OUT') {
-        console.log('✅ User signed out, handling...');
         this.handleUserSignedOut();
       }
-    } catch (error) {
-      console.error('❌ Error in handleAuthStateChange:', error);
-    }
+    });
   }
 
   initializeHeaderMenu() {
-    try {
-      console.log('📝 Initializing header menu...');
-      this.headerMenuManager = new HeaderMenuManager();
-      console.log('✅ Header menu initialized');
-    } catch (error) {
-      console.error('❌ Error initializing header menu:', error);
-    }
+    // Initialize header menu manager
+    this.headerMenuManager = new HeaderMenuManager();
   }
 
   setupEventListeners() {
-    try {
-      console.log('📝 Setting up event listeners...');
-      
-      // Wait for DOM if needed
-      if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', () => {
-          this.attachModalEventListeners();
-        });
-      } else {
+    // Wait for DOM to be fully loaded
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => {
         this.attachModalEventListeners();
-      }
-
-      this.setupFormListeners();
-      
-      // Global escape key listener
-      document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') {
-          this.closeAllModals();
-        }
       });
-      
-      console.log('✅ Event listeners setup complete');
-    } catch (error) {
-      console.error('❌ Error setting up event listeners:', error);
+    } else {
+      this.attachModalEventListeners();
     }
+
+    // Setup form listeners
+    this.setupFormListeners();
+    
+    // Global escape key listener
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        this.closeAllModals();
+      }
+    });
   }
 
   attachModalEventListeners() {
-    try {
-      console.log('📝 Attaching modal event listeners...');
-      
-      // Login modal close button
-      const closeModal = document.getElementById('closeModal');
-      if (closeModal) {
-        closeModal.addEventListener('click', (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          this.closeModal('loginModal');
-        });
-        console.log('✅ Login modal close listener attached');
-      }
-
-      // Signup modal close button
-      const closeSignupModal = document.getElementById('closeSignupModal');
-      if (closeSignupModal) {
-        closeSignupModal.addEventListener('click', (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          this.closeModal('signupModal');
-        });
-        console.log('✅ Signup modal close listener attached');
-      }
-
-      // Upload modal close button
-      const closeUploadModal = document.getElementById('closeUploadModal');
-      if (closeUploadModal) {
-        closeUploadModal.addEventListener('click', (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          this.closeModal('uploadModal');
-        });
-        console.log('✅ Upload modal close listener attached');
-      }
-
-      this.setupClickOutsideListeners();
-      console.log('✅ Modal event listeners attached');
-    } catch (error) {
-      console.error('❌ Error attaching modal listeners:', error);
+    console.log('🔗 Attaching modal event listeners...');
+    
+    // Login modal close button
+    const closeModal = document.getElementById('closeModal');
+    if (closeModal) {
+      console.log('✅ Found login close button');
+      closeModal.addEventListener('click', (e) => {
+        console.log('🔴 Login close button clicked');
+        e.preventDefault();
+        e.stopPropagation();
+        this.closeModal('loginModal');
+      });
+    } else {
+      console.error('❌ Login close button not found');
     }
+
+    // Signup modal close button
+    const closeSignupModal = document.getElementById('closeSignupModal');
+    if (closeSignupModal) {
+      console.log('✅ Found signup close button');
+      closeSignupModal.addEventListener('click', (e) => {
+        console.log('🔴 Signup close button clicked');
+        e.preventDefault();
+        e.stopPropagation();
+        this.closeModal('signupModal');
+      });
+    } else {
+      console.error('❌ Signup close button not found');
+    }
+
+    // Upload modal close button
+    const closeUploadModal = document.getElementById('closeUploadModal');
+    if (closeUploadModal) {
+      console.log('✅ Found upload close button');
+      closeUploadModal.addEventListener('click', (e) => {
+        console.log('🔴 Upload close button clicked');
+        e.preventDefault();
+        e.stopPropagation();
+        this.closeModal('uploadModal');
+      });
+    } else {
+      console.error('❌ Upload close button not found');
+    }
+
+    // Click outside to close modals
+    this.setupClickOutsideListeners();
   }
 
   setupFormListeners() {
-    try {
-      console.log('📝 Setting up form listeners...');
-      
-      // Login form
-      const loginForm = document.getElementById('loginForm');
-      if (loginForm) {
-        loginForm.addEventListener('submit', (e) => {
-          e.preventDefault();
-          this.handleLogin();
-        });
-      }
+    // Login form
+    const loginForm = document.getElementById('loginForm');
+    if (loginForm) {
+      loginForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        this.handleLogin();
+      });
+    }
 
-      // Signup form
-      const signupForm = document.getElementById('signupForm');
-      if (signupForm) {
-        signupForm.addEventListener('submit', (e) => {
-          e.preventDefault();
-          this.handleSignup();
-        });
-      }
+    // Signup form
+    const signupForm = document.getElementById('signupForm');
+    if (signupForm) {
+      signupForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        this.handleSignup();
+      });
+    }
 
-      // Signup link
-      const signupLink = document.getElementById('signupLink');
-      if (signupLink) {
-        signupLink.addEventListener('click', (e) => {
-          e.preventDefault();
-          this.switchToSignup();
-        });
-      }
-      
-      console.log('✅ Form listeners setup complete');
-    } catch (error) {
-      console.error('❌ Error setting up form listeners:', error);
+    // Signup link
+    const signupLink = document.getElementById('signupLink');
+    if (signupLink) {
+      signupLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        this.switchToSignup();
+      });
     }
   }
 
   setupClickOutsideListeners() {
-    try {
-      // Login modal
-      const loginModal = document.getElementById('loginModal');
-      if (loginModal) {
-        loginModal.addEventListener('click', (e) => {
-          if (e.target === loginModal) {
-            this.closeModal('loginModal');
-          }
-        });
-      }
+    console.log('🎯 Setting up click outside listeners...');
 
-      // Signup modal
-      const signupModal = document.getElementById('signupModal');
-      if (signupModal) {
-        signupModal.addEventListener('click', (e) => {
-          if (e.target === signupModal) {
-            this.closeModal('signupModal');
-          }
-        });
-      }
+    // Login modal
+    const loginModal = document.getElementById('loginModal');
+    if (loginModal) {
+      loginModal.addEventListener('click', (e) => {
+        if (e.target === loginModal) {
+          console.log('🔴 Clicked outside login modal');
+          this.closeModal('loginModal');
+        }
+      });
+      console.log('✅ Login modal click outside listener added');
+    }
 
-      // Upload modal
-      const uploadModal = document.getElementById('uploadModal');
-      if (uploadModal) {
-        uploadModal.addEventListener('click', (e) => {
-          if (e.target === uploadModal) {
-            this.closeModal('uploadModal');
-          }
-        });
-      }
-    } catch (error) {
-      console.error('❌ Error setting up click outside listeners:', error);
+    // Signup modal
+    const signupModal = document.getElementById('signupModal');
+    if (signupModal) {
+      signupModal.addEventListener('click', (e) => {
+        if (e.target === signupModal) {
+          console.log('🔴 Clicked outside signup modal');
+          this.closeModal('signupModal');
+        }
+      });
+      console.log('✅ Signup modal click outside listener added');
+    }
+
+    // Upload modal
+    const uploadModal = document.getElementById('uploadModal');
+    if (uploadModal) {
+      uploadModal.addEventListener('click', (e) => {
+        if (e.target === uploadModal) {
+          console.log('🔴 Clicked outside upload modal');
+          this.closeModal('uploadModal');
+        }
+      });
+      console.log('✅ Upload modal click outside listener added');
     }
   }
 
   setupValidation() {
-    try {
-      const signupUsername = document.getElementById('signupUsername');
-      const signupEmail = document.getElementById('signupEmail');
-      const signupPassword = document.getElementById('signupPassword');
-      const loginEmail = document.getElementById('loginEmail');
+    const signupUsername = document.getElementById('signupUsername');
+    const signupEmail = document.getElementById('signupEmail');
+    const signupPassword = document.getElementById('signupPassword');
+    const loginEmail = document.getElementById('loginEmail');
 
-      // Real-time username validation
-      if (signupUsername) {
-        signupUsername.addEventListener('input', () => {
-          this.validateUsername(signupUsername.value);
-        });
-      }
-
-      // Email validation
-      if (signupEmail) {
-        signupEmail.addEventListener('blur', () => {
-          this.validateEmail(signupEmail.value, 'signupEmailError');
-        });
-      }
-
-      if (loginEmail) {
-        loginEmail.addEventListener('blur', () => {
-          this.validateEmail(loginEmail.value, 'loginEmailError');
-        });
-      }
-
-      // Password validation
-      if (signupPassword) {
-        signupPassword.addEventListener('input', () => {
-          this.validatePassword(signupPassword.value);
-        });
-      }
-
-      // Clear errors on input
-      [signupUsername, signupEmail, signupPassword, loginEmail].forEach(input => {
-        if (input) {
-          input.addEventListener('input', () => {
-            this.clearFieldError(input);
-          });
-        }
+    // Real-time username validation
+    if (signupUsername) {
+      signupUsername.addEventListener('input', () => {
+        this.validateUsername(signupUsername.value);
       });
-    } catch (error) {
-      console.error('❌ Error setting up validation:', error);
     }
+
+    // Email validation
+    if (signupEmail) {
+      signupEmail.addEventListener('blur', () => {
+        this.validateEmail(signupEmail.value, 'signupEmailError');
+      });
+    }
+
+    if (loginEmail) {
+      loginEmail.addEventListener('blur', () => {
+        this.validateEmail(loginEmail.value, 'loginEmailError');
+      });
+    }
+
+    // Password validation
+    if (signupPassword) {
+      signupPassword.addEventListener('input', () => {
+        this.validatePassword(signupPassword.value);
+      });
+    }
+
+    // Clear errors on input
+    [signupUsername, signupEmail, signupPassword, loginEmail].forEach(input => {
+      if (input) {
+        input.addEventListener('input', () => {
+          this.clearFieldError(input);
+        });
+      }
+    });
   }
 
   // === VALIDATION METHODS ===
@@ -433,34 +385,34 @@ class AuthManager {
   // === AUTH HANDLERS ===
 
   async handleLogin() {
+    const emailEl = document.getElementById('loginEmail');
+    const passwordEl = document.getElementById('loginPassword');
+    const loginButton = document.getElementById('loginButton');
+
+    if (!emailEl || !passwordEl || !loginButton) return;
+
+    const email = emailEl.value;
+    const password = passwordEl.value;
+
+    // Clear previous errors
+    this.hideError('loginError');
+
+    // Validate
+    if (!email || !password) {
+      this.showError('loginError', 'Please fill in all fields');
+      return;
+    }
+
+    if (!this.validateEmail(email, 'loginEmailError')) {
+      return;
+    }
+
+    // Set loading state
+    loginButton.classList.add('loading');
+    loginButton.disabled = true;
+    loginButton.textContent = 'signing in...';
+
     try {
-      const emailEl = document.getElementById('loginEmail');
-      const passwordEl = document.getElementById('loginPassword');
-      const loginButton = document.getElementById('loginButton');
-
-      if (!emailEl || !passwordEl || !loginButton) return;
-
-      const email = emailEl.value;
-      const password = passwordEl.value;
-
-      // Clear previous errors
-      this.hideError('loginError');
-
-      // Validate
-      if (!email || !password) {
-        this.showError('loginError', 'Please fill in all fields');
-        return;
-      }
-
-      if (!this.validateEmail(email, 'loginEmailError')) {
-        return;
-      }
-
-      // Set loading state
-      loginButton.classList.add('loading');
-      loginButton.disabled = true;
-      loginButton.textContent = 'signing in...';
-
       const { data, error } = await supabaseHelpers.signIn(email, password);
 
       if (error) {
@@ -484,61 +436,58 @@ class AuthManager {
       console.error('Login error:', error);
       this.showError('loginError', 'Login failed. Please try again.');
     } finally {
-      const loginButton = document.getElementById('loginButton');
-      if (loginButton) {
-        loginButton.classList.remove('loading');
-        loginButton.disabled = false;
-        loginButton.textContent = 'sign in';
-      }
+      loginButton.classList.remove('loading');
+      loginButton.disabled = false;
+      loginButton.textContent = 'sign in';
     }
   }
 
   async handleSignup() {
+    const emailEl = document.getElementById('signupEmail');
+    const usernameEl = document.getElementById('signupUsername');
+    const passwordEl = document.getElementById('signupPassword');
+    const signupButton = document.getElementById('signupButton');
+
+    if (!emailEl || !usernameEl || !passwordEl || !signupButton) return;
+
+    const email = emailEl.value;
+    const username = usernameEl.value;
+    const password = passwordEl.value;
+
+    // Clear previous messages
+    this.hideError('signupError');
+    this.hideSuccess('signupSuccess');
+
+    // Validate all fields
+    let hasErrors = false;
+
+    if (!email || !username || !password) {
+      this.showError('signupError', 'Please fill in all fields');
+      return;
+    }
+
+    if (!this.validateEmail(email, 'signupEmailError')) hasErrors = true;
+    if (!this.validatePassword(password)) hasErrors = true;
+
+    // Check username
+    if (username.length < 3) {
+      this.showFieldError('signupUsernameError', 'Username must be at least 3 characters');
+      hasErrors = true;
+    }
+
+    if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+      this.showFieldError('signupUsernameError', 'Username can only contain letters, numbers, and underscores');
+      hasErrors = true;
+    }
+
+    if (hasErrors) return;
+
+    // Set loading state
+    signupButton.classList.add('loading');
+    signupButton.disabled = true;
+    signupButton.textContent = 'creating account...';
+
     try {
-      const emailEl = document.getElementById('signupEmail');
-      const usernameEl = document.getElementById('signupUsername');
-      const passwordEl = document.getElementById('signupPassword');
-      const signupButton = document.getElementById('signupButton');
-
-      if (!emailEl || !usernameEl || !passwordEl || !signupButton) return;
-
-      const email = emailEl.value;
-      const username = usernameEl.value;
-      const password = passwordEl.value;
-
-      // Clear previous messages
-      this.hideError('signupError');
-      this.hideSuccess('signupSuccess');
-
-      // Validate all fields
-      let hasErrors = false;
-
-      if (!email || !username || !password) {
-        this.showError('signupError', 'Please fill in all fields');
-        return;
-      }
-
-      if (!this.validateEmail(email, 'signupEmailError')) hasErrors = true;
-      if (!this.validatePassword(password)) hasErrors = true;
-
-      // Check username
-      if (username.length < 3) {
-        this.showFieldError('signupUsernameError', 'Username must be at least 3 characters');
-        hasErrors = true;
-      }
-
-      if (!/^[a-zA-Z0-9_]+$/.test(username)) {
-        this.showFieldError('signupUsernameError', 'Username can only contain letters, numbers, and underscores');
-        hasErrors = true;
-      }
-
-      if (hasErrors) return;
-
-      // Set loading state
-      signupButton.classList.add('loading');
-      signupButton.disabled = true;
-      signupButton.textContent = 'creating account...';
-
       // Create account
       const { data, error, needsConfirmation } = await supabaseHelpers.signUp(email, password, username);
 
@@ -576,97 +525,104 @@ class AuthManager {
       console.error('Signup error:', error);
       this.showError('signupError', 'Signup failed. Please try again.');
     } finally {
-      const signupButton = document.getElementById('signupButton');
-      if (signupButton) {
-        signupButton.classList.remove('loading');
-        signupButton.disabled = false;
-        signupButton.textContent = 'create account';
-      }
+      signupButton.classList.remove('loading');
+      signupButton.disabled = false;
+      signupButton.textContent = 'create account';
     }
   }
 
-  // SIMPLIFIED: Show welcome message after email confirmation
+  // Add method to show welcome message after email confirmation
   showWelcomeMessage(user) {
     console.log('🎉 Showing welcome message for:', user.email);
     
-    try {
-      // Create welcome toast
-      const toast = document.createElement('div');
-      toast.style.cssText = `
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        background: linear-gradient(135deg, #ff6b35, #e55a2b);
-        color: white;
-        padding: 20px 24px;
-        border-radius: 12px;
-        box-shadow: 0 8px 32px rgba(255, 107, 53, 0.3);
-        z-index: 10000;
-        max-width: 400px;
-        font-family: 'Helvetica Neue', sans-serif;
-        animation: slideInRight 0.4s ease-out;
-      `;
-      
-      toast.innerHTML = `
-        <div style="display: flex; align-items: flex-start; gap: 12px;">
-          <div style="font-size: 24px;">🎉</div>
-          <div>
-            <div style="font-weight: 700; font-size: 16px; margin-bottom: 4px;">
-              Welcome to damnpictures!
-            </div>
-            <div style="font-size: 14px; opacity: 0.9; line-height: 1.4;">
-              Your email has been confirmed. Start sharing your pictures!
-            </div>
+    // Create welcome toast
+    const toast = document.createElement('div');
+    toast.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: linear-gradient(135deg, #ff6b35, #e55a2b);
+      color: white;
+      padding: 20px 24px;
+      border-radius: 12px;
+      box-shadow: 0 8px 32px rgba(255, 107, 53, 0.3);
+      z-index: 10000;
+      max-width: 400px;
+      font-family: 'Helvetica Neue', sans-serif;
+      animation: slideInRight 0.4s ease-out;
+    `;
+    
+    toast.innerHTML = `
+      <div style="display: flex; align-items: flex-start; gap: 12px;">
+        <div style="font-size: 24px;">🎉</div>
+        <div>
+          <div style="font-weight: 700; font-size: 16px; margin-bottom: 4px;">
+            Welcome to damnpictures!
           </div>
-          <button onclick="this.parentElement.parentElement.remove()" 
-                  style="background: none; border: none; color: white; font-size: 18px; cursor: pointer; opacity: 0.7; margin-left: auto;">
-            ×
-          </button>
+          <div style="font-size: 14px; opacity: 0.9; line-height: 1.4;">
+            Your email has been confirmed. Start sharing your pictures!
+          </div>
         </div>
-      `;
+        <button onclick="this.parentElement.parentElement.remove()" 
+                style="background: none; border: none; color: white; font-size: 18px; cursor: pointer; opacity: 0.7; margin-left: auto;">
+          ×
+        </button>
+      </div>
+    `;
 
-      // Add animation styles if not already added
-      if (!document.getElementById('toast-animations')) {
-        const style = document.createElement('style');
-        style.id = 'toast-animations';
-        style.textContent = `
-          @keyframes slideInRight {
-            from {
-              transform: translateX(100%);
-              opacity: 0;
-            }
-            to {
-              transform: translateX(0);
-              opacity: 1;
-            }
+    // Add animation styles if not already added
+    if (!document.getElementById('toast-animations')) {
+      const style = document.createElement('style');
+      style.id = 'toast-animations';
+      style.textContent = `
+        @keyframes slideInRight {
+          from {
+            transform: translateX(100%);
+            opacity: 0;
           }
-        `;
-        document.head.appendChild(style);
-      }
+          to {
+            transform: translateX(0);
+            opacity: 1;
+          }
+        }
+        
+        @keyframes slideOutRight {
+          from {
+            transform: translateX(0);
+            opacity: 1;
+          }
+          to {
+            transform: translateX(100%);
+            opacity: 0;
+          }
+        }
+      `;
+      document.head.appendChild(style);
+    }
 
-      document.body.appendChild(toast);
+    document.body.appendChild(toast);
 
-      // Auto remove after 5 seconds
+    // Auto remove after 5 seconds
+    setTimeout(() => {
+      toast.style.animation = 'slideOutRight 0.4s ease-out';
       setTimeout(() => {
         if (toast.parentElement) {
           toast.remove();
         }
-      }, 5000);
+      }, 400);
+    }, 5000);
 
-      // Also open the upload modal after a short delay
-      setTimeout(() => {
-        const uploadModal = document.getElementById('uploadModal');
-        if (uploadModal) {
-          uploadModal.classList.remove('hidden');
-          // Load photos
-          if (window.uploadManager) {
-            window.uploadManager.loadUserPhotos();
-          }
+    // Also open the upload modal after a short delay
+    setTimeout(() => {
+      const uploadModal = document.getElementById('uploadModal');
+      if (uploadModal) {
+        uploadModal.classList.remove('hidden');
+        // Load photos
+        if (window.uploadManager) {
+          window.uploadManager.loadUserPhotos();
         }
-      }, 1500);
-    } catch (error) {
-      console.error('❌ Error showing welcome message:', error);
-    }
+      }
+    }, 1500);
   }
 
   // Add resend confirmation option
@@ -783,10 +739,9 @@ class AuthManager {
   // === USER STATE HANDLERS ===
 
   async handleUserSignedIn(user) {
-    try {
-      console.log('🔄 Handling user sign in for:', user.email);
-      this.currentUser = user;
+    this.currentUser = user;
 
+    try {
       // Get user profile
       const { data: profile, error } = await supabase
         .from('user_profiles')
@@ -800,7 +755,6 @@ class AuthManager {
       }
 
       this.currentUserProfile = profile;
-      console.log('✅ User profile loaded:', profile.username);
 
       // Update UI
       const loggedInUsername = document.getElementById('loggedInUsername');
@@ -822,103 +776,109 @@ class AuthManager {
       this.closeModal('loginModal');
       this.closeModal('signupModal');
 
-      console.log('✅ User signed in successfully:', profile.username);
+      console.log('User signed in:', profile.username);
 
     } catch (error) {
-      console.error('❌ Error handling sign in:', error);
+      console.error('Error handling sign in:', error);
     }
   }
 
   handleUserSignedOut() {
-    try {
-      console.log('🔄 Handling user sign out');
-      this.currentUser = null;
-      this.currentUserProfile = null;
-      
-      const uploadModal = document.getElementById('uploadModal');
-      if (uploadModal) {
-        uploadModal.classList.add('hidden');
-      }
-      
-      // Update header menu
-      if (this.headerMenuManager) {
-        this.headerMenuManager.onUserLogout();
-      }
-      
-      console.log('✅ User signed out successfully');
-    } catch (error) {
-      console.error('❌ Error handling sign out:', error);
+    this.currentUser = null;
+    this.currentUserProfile = null;
+    const uploadModal = document.getElementById('uploadModal');
+    if (uploadModal) {
+      uploadModal.classList.add('hidden');
     }
+    
+    // Update header menu
+    if (this.headerMenuManager) {
+      this.headerMenuManager.onUserLogout();
+    }
+    
+    console.log('User signed out');
   }
 
   // === MODAL CONTROLS ===
 
   closeModal(modalId) {
-    try {
-      console.log(`🔴 Closing modal: ${modalId}`);
-      const modal = document.getElementById(modalId);
-      if (modal) {
-        modal.classList.add('hidden');
-        this.clearAllErrors();
-        
-        // Reset forms
-        if (modalId === 'loginModal') {
-          const loginForm = document.getElementById('loginForm');
-          if (loginForm) {
-            loginForm.reset();
-          }
+    console.log(`🔴 Closing modal: ${modalId}`);
+    const modal = document.getElementById(modalId);
+    if (modal) {
+      modal.classList.add('hidden');
+      this.clearAllErrors();
+      
+      // Reset forms
+      if (modalId === 'loginModal') {
+        const loginForm = document.getElementById('loginForm');
+        if (loginForm) {
+          loginForm.reset();
         }
-        if (modalId === 'signupModal') {
-          const signupForm = document.getElementById('signupForm');
-          if (signupForm) {
-            signupForm.reset();
-          }
-        }
-        console.log(`✅ Modal ${modalId} closed successfully`);
-      } else {
-        console.error(`❌ Modal ${modalId} not found`);
       }
-    } catch (error) {
-      console.error(`❌ Error closing modal ${modalId}:`, error);
+      if (modalId === 'signupModal') {
+        const signupForm = document.getElementById('signupForm');
+        if (signupForm) {
+          signupForm.reset();
+        }
+      }
+      console.log(`✅ Modal ${modalId} closed successfully`);
+    } else {
+      console.error(`❌ Modal ${modalId} not found`);
     }
   }
 
   closeAllModals() {
-    try {
-      console.log('🔴 Closing all modals');
-      this.closeModal('loginModal');
-      this.closeModal('signupModal');
-      this.closeModal('uploadModal');
-      
-      // Also close upload confirmation modal
-      const confirmModal = document.getElementById('uploadConfirmModal');
-      if (confirmModal) {
-        confirmModal.classList.add('hidden');
-      }
-    } catch (error) {
-      console.error('❌ Error closing all modals:', error);
+    console.log('🔴 Closing all modals');
+    this.closeModal('loginModal');
+    this.closeModal('signupModal');
+    this.closeModal('uploadModal');
+    
+    // Also close upload confirmation modal
+    const confirmModal = document.getElementById('uploadConfirmModal');
+    if (confirmModal) {
+      confirmModal.classList.add('hidden');
     }
   }
 
   switchToSignup() {
-    try {
-      this.closeModal('loginModal');
-      const signupModal = document.getElementById('signupModal');
-      if (signupModal) {
-        signupModal.classList.remove('hidden');
-        const signupEmail = document.getElementById('signupEmail');
-        if (signupEmail) {
-          signupEmail.focus();
-        }
+    this.closeModal('loginModal');
+    const signupModal = document.getElementById('signupModal');
+    if (signupModal) {
+      signupModal.classList.remove('hidden');
+      const signupEmail = document.getElementById('signupEmail');
+      if (signupEmail) {
+        signupEmail.focus();
       }
-    } catch (error) {
-      console.error('❌ Error switching to signup:', error);
     }
   }
 
   switchToLogin() {
-    try {
-      this.closeModal('signupModal');
+    this.closeModal('signupModal');
+    const loginModal = document.getElementById('loginModal');
+    if (loginModal) {
+      loginModal.classList.remove('hidden');
+      const loginEmail = document.getElementById('loginEmail');
+      if (loginEmail) {
+        loginEmail.focus();
+      }
+    }
+  }
+
+  // === PUBLIC METHODS ===
+
+  showLoginModal() {
+    if (this.currentUser) {
+      const uploadModal = document.getElementById('uploadModal');
+      if (uploadModal) {
+        uploadModal.classList.remove('hidden');
+        // Load photos after modal opens
+        setTimeout(async () => {
+          if (window.uploadManager && window.uploadManager.loadUserPhotos) {
+            await window.uploadManager.loadUserPhotos();
+          }
+        }, 100);
+      }
+    } else {
       const loginModal = document.getElementById('loginModal');
       if (loginModal) {
         loginModal.classList.remove('hidden');
@@ -927,38 +887,6 @@ class AuthManager {
           loginEmail.focus();
         }
       }
-    } catch (error) {
-      console.error('❌ Error switching to login:', error);
-    }
-  }
-
-  // === PUBLIC METHODS ===
-
-  showLoginModal() {
-    try {
-      if (this.currentUser) {
-        const uploadModal = document.getElementById('uploadModal');
-        if (uploadModal) {
-          uploadModal.classList.remove('hidden');
-          // Load photos after modal opens
-          setTimeout(async () => {
-            if (window.uploadManager && window.uploadManager.loadUserPhotos) {
-              await window.uploadManager.loadUserPhotos();
-            }
-          }, 100);
-        }
-      } else {
-        const loginModal = document.getElementById('loginModal');
-        if (loginModal) {
-          loginModal.classList.remove('hidden');
-          const loginEmail = document.getElementById('loginEmail');
-          if (loginEmail) {
-            loginEmail.focus();
-          }
-        }
-      }
-    } catch (error) {
-      console.error('❌ Error showing login modal:', error);
     }
   }
 
@@ -982,7 +910,7 @@ class AuthManager {
   }
 }
 
-// SIMPLIFIED Header Menu Manager
+// Header Menu Manager
 class HeaderMenuManager {
   constructor() {
     this.headerMenu = null;
@@ -996,66 +924,50 @@ class HeaderMenuManager {
   }
 
   init() {
-    try {
-      console.log('📝 Initializing HeaderMenuManager...');
-      
-      // Get DOM elements
-      this.headerMenu = document.getElementById('headerMenu');
-      this.primaryLabel = document.getElementById('primaryLabel');
-      this.hoverLabel = document.getElementById('hoverLabel');
-      this.submenu = document.getElementById('submenu');
-      this.logoutMenuItem = document.getElementById('logoutMenuItem');
+    // Get DOM elements
+    this.headerMenu = document.getElementById('headerMenu');
+    this.primaryLabel = document.getElementById('primaryLabel');
+    this.hoverLabel = document.getElementById('hoverLabel');
+    this.submenu = document.getElementById('submenu');
+    this.logoutMenuItem = document.getElementById('logoutMenuItem');
 
-      // Set up event listeners
-      this.setupEventListeners();
-      
-      // Set initial state (will be updated by router)
-      this.updateMenuState(false, null);
-      
-      console.log('✅ HeaderMenuManager initialized');
-    } catch (error) {
-      console.error('❌ Error initializing HeaderMenuManager:', error);
-    }
+    // Set up event listeners
+    this.setupEventListeners();
+    
+    // Set initial state (will be updated by router)
+    this.updateMenuState(false, null);
   }
 
   setupEventListeners() {
-    try {
-      // Main menu click
-      if (this.headerMenu) {
-        this.headerMenu.addEventListener('click', () => {
+    // Main menu click
+    if (this.headerMenu) {
+      this.headerMenu.addEventListener('click', () => {
+        this.handleMenuClick();
+      });
+    }
+
+    // Logout menu item click
+    if (this.logoutMenuItem) {
+      this.logoutMenuItem.addEventListener('click', (e) => {
+        e.stopPropagation(); // Prevent menu click from firing
+        this.handleLogout();
+      });
+    }
+
+    // Keyboard navigation
+    if (this.headerMenu) {
+      this.headerMenu.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
           this.handleMenuClick();
-        });
-      }
-
-      // Logout menu item click
-      if (this.logoutMenuItem) {
-        this.logoutMenuItem.addEventListener('click', (e) => {
-          e.stopPropagation(); // Prevent menu click from firing
-          this.handleLogout();
-        });
-      }
-
-      // Keyboard navigation
-      if (this.headerMenu) {
-        this.headerMenu.addEventListener('keydown', (e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            this.handleMenuClick();
-          }
-        });
-      }
-    } catch (error) {
-      console.error('❌ Error setting up header menu listeners:', error);
+        }
+      });
     }
   }
 
   handleMenuClick() {
-    try {
-      if (window.authManager) {
-        window.authManager.showLoginModal();
-      }
-    } catch (error) {
-      console.error('❌ Error handling menu click:', error);
+    if (window.authManager) {
+      window.authManager.showLoginModal();
     }
   }
 
@@ -1065,57 +977,53 @@ class HeaderMenuManager {
         await window.authManager.logout();
       }
     } catch (error) {
-      console.error('❌ Logout error:', error);
+      console.error('Logout error:', error);
     }
   }
 
   // Update menu state based on authentication and current user
   updateMenuState(isLoggedIn, loggedInUsername) {
-    try {
-      this.isLoggedIn = isLoggedIn;
-      
-      // Get current viewing user from router
-      const currentPath = window.location.pathname;
-      if (currentPath.startsWith('/u/')) {
-        this.currentViewingUser = currentPath.split('/u/')[1];
-      } else {
-        this.currentViewingUser = 'anonymous';
-      }
+    this.isLoggedIn = isLoggedIn;
+    
+    // Get current viewing user from router
+    const currentPath = window.location.pathname;
+    if (currentPath.startsWith('/u/')) {
+      this.currentViewingUser = currentPath.split('/u/')[1];
+    } else {
+      this.currentViewingUser = 'anonymous';
+    }
 
-      // Always show whose gallery we're viewing
-      if (this.primaryLabel) {
-        if (this.currentViewingUser && this.currentViewingUser !== 'anonymous') {
-          this.primaryLabel.textContent = `damnpictures / ${this.currentViewingUser}`;
-        } else {
-          this.primaryLabel.textContent = 'damnpictures';
-        }
-      }
-      
-      if (isLoggedIn && loggedInUsername) {
-        // Logged in state - can manage pictures
-        if (this.headerMenu) {
-          this.headerMenu.className = 'header-menu logged-in';
-        }
-        if (this.hoverLabel) {
-          this.hoverLabel.textContent = 'manage pictures';
-        }
-        if (this.submenu) {
-          this.submenu.style.display = '';
-        }
+    // Always show whose gallery we're viewing
+    if (this.primaryLabel) {
+      if (this.currentViewingUser && this.currentViewingUser !== 'anonymous') {
+        this.primaryLabel.textContent = `damnpictures / ${this.currentViewingUser}`;
       } else {
-        // Logged out state - should log in
-        if (this.headerMenu) {
-          this.headerMenu.className = 'header-menu logged-out';
-        }
-        if (this.hoverLabel) {
-          this.hoverLabel.textContent = 'log in / sign up';
-        }
-        if (this.submenu) {
-          this.submenu.style.display = 'none';
-        }
+        this.primaryLabel.textContent = 'damnpictures';
       }
-    } catch (error) {
-      console.error('❌ Error updating menu state:', error);
+    }
+    
+    if (isLoggedIn && loggedInUsername) {
+      // Logged in state - can manage pictures
+      if (this.headerMenu) {
+        this.headerMenu.className = 'header-menu logged-in';
+      }
+      if (this.hoverLabel) {
+        this.hoverLabel.textContent = 'manage pictures';
+      }
+      if (this.submenu) {
+        this.submenu.style.display = '';
+      }
+    } else {
+      // Logged out state - should log in
+      if (this.headerMenu) {
+        this.headerMenu.className = 'header-menu logged-out';
+      }
+      if (this.hoverLabel) {
+        this.hoverLabel.textContent = 'log in / sign up';
+      }
+      if (this.submenu) {
+        this.submenu.style.display = 'none';
+      }
     }
   }
 
@@ -1136,179 +1044,85 @@ class HeaderMenuManager {
   }
 }
 
-// SIMPLIFIED email confirmation detection
-function handleEmailConfirmation() {
-  try {
-    console.log('🔍 Checking for email confirmation...');
+// Check for email confirmation from URL on page load
+document.addEventListener('DOMContentLoaded', () => {
+  // Check if user came from email confirmation
+  const urlParams = new URLSearchParams(window.location.search);
+  const fragment = new URLSearchParams(window.location.hash.substring(1));
+  
+  // Check for confirmation tokens in URL
+  const accessToken = urlParams.get('access_token') || fragment.get('access_token');
+  const type = urlParams.get('type') || fragment.get('type');
+  
+  if (accessToken && type === 'signup') {
+    console.log('🔗 Detected email confirmation from URL');
     
-    // Check if user came from email confirmation
-    const urlParams = new URLSearchParams(window.location.search);
-    const fragment = new URLSearchParams(window.location.hash.substring(1));
+    // Clean the URL immediately
+    const cleanUrl = window.location.pathname;
+    window.history.replaceState({}, '', cleanUrl);
     
-    // Check for confirmation tokens in URL
-    const accessToken = urlParams.get('access_token') || fragment.get('access_token');
-    const type = urlParams.get('type') || fragment.get('type');
-    
-    if (accessToken && type === 'signup') {
-      console.log('🔗 Detected email confirmation from URL');
-      
-      // Clean the URL immediately
-      const cleanUrl = window.location.pathname;
-      window.history.replaceState({}, '', cleanUrl);
-      
-      // Set a flag that we're coming from email confirmation
-      sessionStorage.setItem('email_confirmed', 'true');
-      
-      console.log('✅ Email confirmation detected and URL cleaned');
-      return true;
-    }
-    
-    return false;
-  } catch (error) {
-    console.error('❌ Error handling email confirmation:', error);
-    return false;
+    // Wait a moment for auth state to settle, then show welcome
+    setTimeout(() => {
+      if (window.authManager && window.authManager.currentUser) {
+        window.authManager.showWelcomeMessage(window.authManager.currentUser);
+      } else {
+        // Fallback: show a simple success message
+        showSimpleConfirmationMessage();
+      }
+    }, 1000);
   }
-}
+});
 
 function showSimpleConfirmationMessage() {
-  try {
-    // Simple confirmation banner
-    const banner = document.createElement('div');
-    banner.style.cssText = `
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      background: linear-gradient(135deg, #2ed573, #26d65c);
-      color: white;
-      padding: 16px;
-      text-align: center;
-      font-weight: 600;
-      z-index: 10000;
-      box-shadow: 0 2px 12px rgba(46, 213, 115, 0.3);
-    `;
-    
-    banner.innerHTML = `
-      ✅ Email confirmed! Welcome to damnpictures
-      <button onclick="this.parentElement.remove()" 
-              style="background: none; border: none; color: white; font-size: 18px; cursor: pointer; margin-left: 16px;">
-        ×
-      </button>
-    `;
-    
-    document.body.appendChild(banner);
-    
-    // Auto remove after 4 seconds
-    setTimeout(() => {
-      if (banner.parentElement) {
-        banner.remove();
-      }
-    }, 4000);
-  } catch (error) {
-    console.error('❌ Error showing confirmation message:', error);
-  }
-}
-
-// SIMPLIFIED initialization
-function initializeApp() {
-  try {
-    console.log('🚀 Initializing damnpictures app...');
-    
-    // Check for email confirmation first
-    const wasEmailConfirmed = handleEmailConfirmation();
-    
-    // Initialize auth manager
-    console.log('📝 Creating AuthManager...');
-    window.authManager = new AuthManager();
-
-    // Make functions available globally for compatibility
-    window.getCurrentUserProfile = () => window.authManager?.getCurrentUserProfile();
-    window.isLoggedIn = () => window.authManager?.isLoggedIn();
-    
-    // Make header menu manager available globally
-    window.headerMenuManager = window.authManager?.headerMenuManager;
-    
-    // If we detected email confirmation, show welcome after auth settles
-    if (wasEmailConfirmed) {
-      console.log('📧 Email confirmation detected, will show welcome message');
-      
-      // Check periodically if user is signed in
-      let checkCount = 0;
-      const checkInterval = setInterval(() => {
-        checkCount++;
-        
-        if (window.authManager?.currentUser) {
-          console.log('✅ User found after email confirmation');
-          clearInterval(checkInterval);
-          
-          // Show welcome message
-          if (window.authManager.showWelcomeMessage) {
-            window.authManager.showWelcomeMessage(window.authManager.currentUser);
-          } else {
-            showSimpleConfirmationMessage();
-          }
-          
-          // Clear the session flag
-          sessionStorage.removeItem('email_confirmed');
-        } else if (checkCount > 20) {
-          // Stop checking after 10 seconds (20 * 500ms)
-          console.log('⏰ Timeout waiting for user after email confirmation');
-          clearInterval(checkInterval);
-          showSimpleConfirmationMessage();
-          sessionStorage.removeItem('email_confirmed');
-        }
-      }, 500);
+  // Simple confirmation banner
+  const banner = document.createElement('div');
+  banner.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: linear-gradient(135deg, #2ed573, #26d65c);
+    color: white;
+    padding: 16px;
+    text-align: center;
+    font-weight: 600;
+    z-index: 10000;
+    box-shadow: 0 2px 12px rgba(46, 213, 115, 0.3);
+  `;
+  
+  banner.innerHTML = `
+    ✅ Email confirmed! Welcome to damnpictures
+    <button onclick="this.parentElement.remove()" 
+            style="background: none; border: none; color: white; font-size: 18px; cursor: pointer; margin-left: 16px;">
+      ×
+    </button>
+  `;
+  
+  document.body.appendChild(banner);
+  
+  // Auto remove after 4 seconds
+  setTimeout(() => {
+    if (banner.parentElement) {
+      banner.remove();
     }
-    
-    console.log('✅ App initialization complete');
-    
-  } catch (error) {
-    console.error('❌ CRITICAL ERROR in app initialization:', error);
-    
-    // Show error message to user
-    document.body.innerHTML = `
-      <div style="
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: #1a1a1a;
-        color: white;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        text-align: center;
-        font-family: Arial, sans-serif;
-      ">
-        <div>
-          <h1 style="color: #ff4757; margin-bottom: 1rem;">Something went wrong</h1>
-          <p style="margin-bottom: 2rem;">There was an error loading the app. Please refresh the page.</p>
-          <button onclick="window.location.reload()" style="
-            background: #667eea;
-            color: white;
-            border: none;
-            padding: 12px 24px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 16px;
-          ">Refresh Page</button>
-        </div>
-      </div>
-    `;
-  }
+  }, 4000);
 }
 
-// Initialize when DOM is ready
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initializeApp);
-} else {
-  // DOM is already ready
-  initializeApp();
-}
+// Initialize auth manager
+document.addEventListener('DOMContentLoaded', () => {
+  console.log('🚀 Initializing AuthManager...');
+  window.authManager = new AuthManager();
+
+  // Make functions available globally for compatibility
+  window.getCurrentUserProfile = () => window.authManager.getCurrentUserProfile();
+  window.isLoggedIn = () => window.authManager.isLoggedIn();
+  
+  // Make header menu manager available globally
+  window.headerMenuManager = window.authManager.headerMenuManager;
+  
+  console.log('✅ AuthManager initialized');
+});
 
 // Export for other modules
 window.AuthManager = AuthManager;
 window.HeaderMenuManager = HeaderMenuManager;
-
-console.log('📄 Script.js loaded successfully');
