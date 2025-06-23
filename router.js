@@ -7,24 +7,34 @@ class DamnPicturesRouter {
   }
 
   init() {
-    window.addEventListener('DOMContentLoaded', () => {
-      this.waitForDependencies(() => {
-        // Check if this is a page refresh
-        const isRefresh = performance.getEntriesByType('navigation')[0]?.type === 'reload';
-        
-        if (isRefresh) {
-          // Any refresh goes to random user
-          console.log('Page refresh - going to random user');
-          this.redirectToRandomUser();
-        } else {
-          // Normal navigation - handle the current route
-          this.handleRoute();
-        }
-      });
-    });
-    
-    window.addEventListener('popstate', () => this.handleRoute());
+  // Don't wait for DOMContentLoaded if DOM is already ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => this.startRouter());
+  } else {
+    this.startRouter();
   }
+  
+  window.addEventListener('popstate', () => this.handleRoute());
+}
+
+startRouter() {
+  console.log('Starting router...');
+  
+  // Check if this is a page refresh
+  const isRefresh = performance.getEntriesByType('navigation')[0]?.type === 'reload';
+  
+  if (isRefresh) {
+    console.log('Page refresh - going to random user');
+    this.waitForDependencies(() => {
+      this.redirectToRandomUser();
+    });
+  } else {
+    console.log('Normal navigation');
+    this.waitForDependencies(() => {
+      this.handleRoute();
+    });
+  }
+}
 
   async waitForDependencies(callback) {
     const checkReady = () => {
