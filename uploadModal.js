@@ -1,34 +1,40 @@
-// Enhanced uploadModal.js with lossless uploads for eldricarpilleda
-
+// Optimized uploadModal.js - Artwork-friendly with 72 photo limit
 class ImageUploadManager {
   constructor() {
-    // Default upload limits
-    this.defaultMaxFileSize = 2 * 1024 * 1024; // 2MB for regular users
-    this.maxFileSize = this.defaultMaxFileSize;
+    // Photo limits
+    this.MAX_PHOTOS_PER_USER = 72;
     
-    // User-specific upload limits (in bytes)
+    // Artwork-friendly compression settings
+    this.defaultMaxFileSize = 3 * 1024 * 1024; // 3MB before compression
+    this.maxFileSize = this.defaultMaxFileSize;
+    this.defaultMaxDimension = 2400; // Higher res for artwork
+    this.maxDimension = this.defaultMaxDimension;
+    this.compressionQuality = 0.92; // High quality for artwork
+    
+    // User-specific settings
     this.userUploadLimits = {
       'eldricarpilleda': 50 * 1024 * 1024,
-      'colai': 50 * 1024 * 1024, // 50MB for eldricarpilleda (lossless)
+      'colai': 50 * 1024 * 1024,
     };
     
-    // User-specific lossless upload permissions
     this.losslessUsers = new Set(['eldricarpilleda', 'colai']);
-    
-    // User-specific resolution limits
     this.userResolutionLimits = {
-      'eldricarpilleda': null, // null = no resolution limit
-      // Other users will use the default 2048px limit
+      'eldricarpilleda': null,
       'colai': null,
     };
     
-    this.defaultMaxDimension = 2048;
-    this.maxDimension = this.defaultMaxDimension;
-    this.compressionQuality = 0.8;
+    // Upload optimization settings
+    this.UPLOAD_BATCH_SIZE = 3; // Parallel uploads
+    this.PHOTO_LOAD_BATCH_SIZE = 24; // Load photos in batches
+    
+    // State
     this.selectedPhotos = new Set();
     this.pendingFiles = [];
     this.editMode = false;
     this.currentUserIsLossless = false;
+    this.totalUserPhotos = 0;
+    this.isUploading = false;
+    
     this.init();
   }
 
@@ -42,27 +48,19 @@ class ImageUploadManager {
     this.photoList = document.getElementById('photoList');
 
     this.setupEventListeners();
-    this.createConfirmationModal();
     this.setupModalOpenListener();
-    
-    // Load photos when initialized
     this.loadUserPhotos();
   }
 
-  // Enhanced method to update all user-specific settings
   updateUserSettings() {
     const userProfile = window.getCurrentUserProfile();
     if (userProfile && userProfile.username) {
       const username = userProfile.username;
       
-      // Update file size limit
       const customLimit = this.userUploadLimits[username];
       this.maxFileSize = customLimit || this.defaultMaxFileSize;
-      
-      // Update lossless permission
       this.currentUserIsLossless = this.losslessUsers.has(username);
       
-      // Update resolution limit
       const customResolution = this.userResolutionLimits[username];
       this.maxDimension = customResolution !== undefined ? customResolution : this.defaultMaxDimension;
       
@@ -75,17 +73,18 @@ class ImageUploadManager {
     }
   }
 
-  // Enhanced upload section text that shows current user capabilities
   updateUploadSectionText() {
     const uploadSubtext = document.querySelector('.upload-subtext');
     if (uploadSubtext && !uploadSubtext.classList.contains('has-files')) {
       const limitText = this.formatFileSize(this.maxFileSize);
+      const remainingPhotos = this.MAX_PHOTOS_PER_USER - this.totalUserPhotos;
+      
       let text = `Supports JPG, PNG, GIF • `;
       
       if (this.currentUserIsLossless) {
-        text += `LOSSLESS uploads up to ${limitText} • No resolution limit`;
+        text += `LOSSLESS uploads up to ${limitText} • ${remainingPhotos} photos remaining`;
       } else {
-        text += `Auto-compressed to ${limitText} • Max ${this.maxDimension}px`;
+        text += `Artwork-quality compression • Max ${this.maxDimension}px • ${remainingPhotos} photos remaining`;
       }
       
       uploadSubtext.textContent = text;
@@ -100,8 +99,7 @@ class ImageUploadManager {
           if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
             const modal = mutation.target;
             if (!modal.classList.contains('hidden') && window.isLoggedIn()) {
-              console.log('🎯 Upload modal opened, loading photos...');
-              this.updateUserSettings(); // Update user settings when modal opens
+              this.updateUserSettings();
               this.loadUserPhotos();
             }
           }
@@ -112,114 +110,27 @@ class ImageUploadManager {
         attributes: true,
         attributeFilter: ['class']
       });
-      
-      console.log('📋 Modal open listener setup complete');
-    }
-  }
-
-  createConfirmationModal() {
-    if (document.getElementById('uploadConfirmModal')) return;
-
-    const confirmModal = document.createElement('div');
-    confirmModal.id = 'uploadConfirmModal';
-    confirmModal.className = 'modal hidden';
-    confirmModal.innerHTML = `
-      <div class="modal-content" style="width: min(90vw, 700px); max-height: 80vh;">
-        <div class="modal-header">
-          <h2 class="modal-title">Confirm Upload</h2>
-          <button class="close-btn" id="closeConfirmModal">&times;</button>
-        </div>
-        <div class="modal-body">
-          <div style="margin-bottom: 16px;">
-            <p style="color: #ccc; margin: 0;">Review your photos before uploading. Click on any photo to remove it.</p>
-          </div>
-          <div id="confirmPhotoGrid" class="photos-grid" style="max-height: 400px; overflow-y: auto;">
-            <!-- Preview photos will be inserted here -->
-          </div>
-          <div style="display: flex; gap: 12px; margin-top: 24px;">
-            <button id="cancelUploadBtn" class="secondary-btn" style="flex: 1;">Cancel</button>
-            <button id="proceedUploadBtn" class="primary-btn" style="flex: 2;">Upload Photos</button>
-          </div>
-        </div>
-      </div>
-    `;
-
-    document.body.appendChild(confirmModal);
-    this.setupConfirmationModalListeners();
-  }
-
-  setupConfirmationModalListeners() {
-    console.log('🔗 Setting up confirmation modal listeners...');
-    
-    // Close button
-    const closeConfirmModal = document.getElementById('closeConfirmModal');
-    if (closeConfirmModal) {
-      closeConfirmModal.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        this.hideConfirmationModal();
-      });
-    }
-
-    // Cancel button
-    const cancelUploadBtn = document.getElementById('cancelUploadBtn');
-    if (cancelUploadBtn) {
-      cancelUploadBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        this.cancelUpload();
-      });
-    }
-
-    // Proceed button
-    const proceedUploadBtn = document.getElementById('proceedUploadBtn');
-    if (proceedUploadBtn) {
-      proceedUploadBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        this.proceedWithUpload();
-      });
-    }
-
-    // Click outside to close
-    const confirmModal = document.getElementById('uploadConfirmModal');
-    if (confirmModal) {
-      confirmModal.addEventListener('click', (e) => {
-        if (e.target === confirmModal) {
-          this.hideConfirmationModal();
-        }
-      });
-
-      confirmModal.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') {
-          this.hideConfirmationModal();
-        }
-      });
     }
   }
 
   setupEventListeners() {
-    // File input change
     if (this.fileInput) {
       this.fileInput.addEventListener('change', (e) => {
         this.handleFiles(e.target.files);
-        this.updateUploadButton();
       });
     }
 
-    // Upload button click - Show confirmation
     if (this.uploadBtn) {
       this.uploadBtn.addEventListener('click', (e) => {
         e.preventDefault();
-        if (this.pendingFiles.length > 0) {
-          this.showUploadConfirmation();
-        } else {
+        if (this.pendingFiles.length > 0 && !this.isUploading) {
+          this.uploadFiles(); // Direct upload, no confirmation modal
+        } else if (!this.isUploading) {
           this.fileInput.click();
         }
       });
     }
 
-    // Drag and drop
     this.setupDragAndDrop();
   }
 
@@ -262,62 +173,71 @@ class ImageUploadManager {
     const imageFiles = fileArray.filter(file => file.type.startsWith('image/'));
     
     if (imageFiles.length === 0) {
-      alert('Please select image files only (JPG, PNG, GIF, WebP)');
+      this.showError('Please select image files only (JPG, PNG, GIF, WebP)');
+      return;
+    }
+
+    // Check photo limit
+    const remainingSlots = this.MAX_PHOTOS_PER_USER - this.totalUserPhotos;
+    if (imageFiles.length > remainingSlots) {
+      this.showError(`You can only upload ${remainingSlots} more photos (${this.MAX_PHOTOS_PER_USER} total limit)`);
       return;
     }
 
     if (imageFiles.length !== fileArray.length) {
-      alert(`${fileArray.length - imageFiles.length} non-image files were ignored`);
+      this.showWarning(`${fileArray.length - imageFiles.length} non-image files were ignored`);
     }
 
-    this.validateAndDisplayFiles(imageFiles);
+    this.validateAndProcessFiles(imageFiles);
   }
 
-  // Enhanced file validation that handles lossless uploads
-  async validateAndDisplayFiles(files) {
-    console.log(`Processing ${files.length} files...`);
-    console.log(`User: ${window.getCurrentUserProfile()?.username}`);
-    console.log(`Lossless mode: ${this.currentUserIsLossless}`);
-    console.log(`File size limit: ${this.formatFileSize(this.maxFileSize)}`);
+  async validateAndProcessFiles(files) {
+    console.log(`Processing ${files.length} files for artwork-quality upload...`);
     
     const validFiles = [];
     const oversizedFiles = [];
     
-    for (const file of files) {
+    this.showProgress(true, 'Processing images...');
+    
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      this.updateProgress((i / files.length) * 50); // First 50% for processing
+      
       if (this.currentUserIsLossless) {
-        // For lossless users, only check file size - no compression
+        // Lossless users: only check file size
         if (file.size > this.maxFileSize) {
           oversizedFiles.push(file);
         } else {
           validFiles.push(file);
-          console.log(`✅ Lossless file accepted: ${file.name} (${this.formatFileSize(file.size)})`);
         }
       } else {
-        // For regular users, use compression as before
+        // Regular users: smart compression for artwork
         if (file.size > this.maxFileSize) {
           try {
-            const compressedFile = await this.compressImage(file);
-            if (compressedFile.size <= this.maxFileSize) {
-              validFiles.push(compressedFile);
-              console.log(`✅ Compressed ${file.name} from ${this.formatFileSize(file.size)} to ${this.formatFileSize(compressedFile.size)}`);
+            const processedFile = await this.smartCompressImage(file);
+            if (processedFile.size <= this.maxFileSize) {
+              validFiles.push(processedFile);
+              console.log(`✅ Optimized ${file.name}: ${this.formatFileSize(file.size)} → ${this.formatFileSize(processedFile.size)}`);
             } else {
               oversizedFiles.push(file);
             }
           } catch (error) {
-            console.error(`Compression failed for ${file.name}:`, error);
+            console.error(`Processing failed for ${file.name}:`, error);
             oversizedFiles.push(file);
           }
         } else {
+          // File is small enough, use as-is
           validFiles.push(file);
         }
       }
     }
 
+    this.showProgress(false);
+
     if (oversizedFiles.length > 0) {
       const oversizedNames = oversizedFiles.map(f => f.name).join(', ');
       const limitText = this.formatFileSize(this.maxFileSize);
-      const modeText = this.currentUserIsLossless ? 'lossless upload limit' : 'compressed limit';
-      alert(`These files exceed the ${modeText} of ${limitText}: ${oversizedNames}`);
+      this.showError(`These files exceed the limit of ${limitText}: ${oversizedNames}`);
     }
 
     if (validFiles.length > 0) {
@@ -330,7 +250,7 @@ class ImageUploadManager {
     }
   }
 
-  async compressImage(file) {
+  async smartCompressImage(file) {
     return new Promise((resolve, reject) => {
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
@@ -338,11 +258,32 @@ class ImageUploadManager {
       
       img.onload = () => {
         try {
-          let { width, height } = this.calculateDimensions(img.width, img.height);
+          // Smart resizing: only resize if actually oversized
+          let { width, height } = this.calculateOptimalDimensions(img.width, img.height);
+          
           canvas.width = width;
           canvas.height = height;
+          
+          // High-quality drawing for artwork
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'high';
           ctx.drawImage(img, 0, 0, width, height);
-          this.compressWithQuality(canvas, file, resolve, reject);
+          
+          // Compress with high quality
+          canvas.toBlob((blob) => {
+            if (!blob) {
+              reject(new Error('Compression failed'));
+              return;
+            }
+
+            const compressedFile = new File([blob], file.name, {
+              type: file.type,
+              lastModified: Date.now()
+            });
+
+            resolve(compressedFile);
+          }, file.type, this.compressionQuality);
+          
         } catch (error) {
           reject(error);
         }
@@ -353,36 +294,9 @@ class ImageUploadManager {
     });
   }
 
-  compressWithQuality(canvas, originalFile, resolve, reject, quality = this.compressionQuality) {
-    canvas.toBlob((blob) => {
-      if (!blob) {
-        reject(new Error('Compression failed'));
-        return;
-      }
-
-      if (blob.size > this.maxFileSize && quality > 0.1) {
-        this.compressWithQuality(canvas, originalFile, resolve, reject, quality - 0.1);
-        return;
-      }
-
-      const compressedFile = new File([blob], originalFile.name, {
-        type: originalFile.type,
-        lastModified: Date.now()
-      });
-
-      resolve(compressedFile);
-    }, originalFile.type, quality);
-  }
-
-  // Modified dimension calculation to respect user-specific limits
-  calculateDimensions(originalWidth, originalHeight) {
-    // If no resolution limit (lossless user), return original dimensions
-    if (!this.maxDimension) {
-      return { width: originalWidth, height: originalHeight };
-    }
-    
-    // Apply resolution limit for regular users
-    if (originalWidth <= this.maxDimension && originalHeight <= this.maxDimension) {
+  calculateOptimalDimensions(originalWidth, originalHeight) {
+    // For lossless users or if image is already small enough
+    if (!this.maxDimension || (originalWidth <= this.maxDimension && originalHeight <= this.maxDimension)) {
       return { width: originalWidth, height: originalHeight };
     }
 
@@ -401,367 +315,156 @@ class ImageUploadManager {
     }
   }
 
-  // Enhanced file preview that shows lossless status
   showFilePreview(files) {
     const totalSize = files.reduce((sum, f) => sum + f.size, 0);
-    const fileNames = files.map(f => `${f.name} (${this.formatFileSize(f.size)})`).join(', ');
     
     const uploadText = document.querySelector('.upload-text');
     if (uploadText) {
-      let text = `${files.length} file(s) ready to upload`;
+      let text = `${files.length} photo${files.length > 1 ? 's' : ''} ready`;
       if (this.currentUserIsLossless) {
-        text += ` • LOSSLESS (${this.formatFileSize(totalSize)} total)`;
+        text += ` • LOSSLESS (${this.formatFileSize(totalSize)})`;
+      } else {
+        text += ` • ${this.formatFileSize(totalSize)} total`;
       }
       uploadText.textContent = text;
     }
     
     const uploadSubtext = document.querySelector('.upload-subtext');
     if (uploadSubtext) {
-      uploadSubtext.textContent = fileNames;
+      const fileNames = files.slice(0, 3).map(f => f.name).join(', ');
+      const remaining = files.length > 3 ? ` and ${files.length - 3} more...` : '';
+      uploadSubtext.textContent = fileNames + remaining;
       uploadSubtext.classList.add('has-files');
     }
   }
 
-  // Enhanced upload button text
   updateUploadButton() {
     const fileCount = this.pendingFiles.length;
-    const uploadBtnContainer = this.uploadBtn?.parentElement;
     
-    if (!this.uploadBtn || !uploadBtnContainer) return;
+    if (!this.uploadBtn) return;
     
-    if (fileCount > 0) {
+    if (this.isUploading) {
+      this.uploadBtn.textContent = 'Uploading...';
+      this.uploadBtn.disabled = true;
+    } else if (fileCount > 0) {
       const suffix = this.currentUserIsLossless ? ' (Lossless)' : '';
-      this.uploadBtn.textContent = `Review ${fileCount} Photo${fileCount > 1 ? 's' : ''}${suffix}`;
+      this.uploadBtn.textContent = `Upload ${fileCount} Photo${fileCount > 1 ? 's' : ''}${suffix}`;
       this.uploadBtn.disabled = false;
-      this.uploadBtn.style.background = 'transparent';
-      this.uploadBtn.style.border = '2px solid #667eea';
-      this.uploadBtn.style.color = '#667eea';
-      
-      let quickUploadBtn = document.getElementById('quickUploadBtn');
-      if (!quickUploadBtn) {
-        quickUploadBtn = document.createElement('button');
-        quickUploadBtn.id = 'quickUploadBtn';
-        quickUploadBtn.className = 'quick-upload-btn';
-        quickUploadBtn.addEventListener('click', (e) => {
-          e.preventDefault();
-          this.proceedWithUpload();
-        });
-        uploadBtnContainer.appendChild(quickUploadBtn);
-      }
-      
-      quickUploadBtn.textContent = `Quick Upload ${fileCount} Photo${fileCount > 1 ? 's' : ''}${suffix}`;
-      quickUploadBtn.disabled = false;
-      quickUploadBtn.style.display = 'block';
-      
+      this.uploadBtn.className = 'upload-btn ready';
     } else {
       this.uploadBtn.textContent = 'Select Photos';
       this.uploadBtn.disabled = true;
-      this.uploadBtn.style.background = '#555';
-      this.uploadBtn.style.border = 'none';
-      this.uploadBtn.style.color = 'white';
-      
-      const quickUploadBtn = document.getElementById('quickUploadBtn');
-      if (quickUploadBtn) {
-        quickUploadBtn.style.display = 'none';
-      }
+      this.uploadBtn.className = 'upload-btn';
     }
   }
 
-  async showUploadConfirmation() {
-    if (this.pendingFiles.length === 0) return;
-
-    const confirmModal = document.getElementById('uploadConfirmModal');
-    const photoGrid = document.getElementById('confirmPhotoGrid');
-    const proceedBtn = document.getElementById('proceedUploadBtn');
-
-    if (!confirmModal || !photoGrid || !proceedBtn) return;
-
-    const suffix = this.currentUserIsLossless ? ' (Lossless)' : '';
-    proceedBtn.textContent = `Upload ${this.pendingFiles.length} Photo${this.pendingFiles.length > 1 ? 's' : ''}${suffix}`;
-
-    photoGrid.innerHTML = '';
-    
-    for (let i = 0; i < this.pendingFiles.length; i++) {
-      const file = this.pendingFiles[i];
-      const preview = await this.createFilePreview(file, i);
-      photoGrid.appendChild(preview);
-    }
-
-    confirmModal.classList.remove('hidden');
-  }
-
-  createFilePreview(file, index) {
-    return new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const preview = document.createElement('div');
-        preview.className = 'preview-item';
-        preview.dataset.index = index;
-        
-        const losslessIndicator = this.currentUserIsLossless ? 
-          '<div style="position: absolute; top: 4px; left: 4px; background: rgba(102, 126, 234, 0.9); color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold;">LOSSLESS</div>' : '';
-        
-        preview.innerHTML = `
-          <div style="
-            position: relative;
-            aspect-ratio: 1;
-            border-radius: 8px;
-            overflow: hidden;
-            background: #333;
-            cursor: pointer;
-            transition: all 0.2s ease;
-          " onclick="uploadManager.removeFileFromUpload(${index})">
-            ${losslessIndicator}
-            <img src="${e.target.result}" alt="${file.name}" style="
-              width: 100%;
-              height: 100%;
-              object-fit: cover;
-            " />
-            <div style="
-              position: absolute;
-              top: 8px;
-              right: 8px;
-              background: rgba(255, 71, 87, 0.9);
-              color: white;
-              border-radius: 50%;
-              width: 24px;
-              height: 24px;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              font-size: 16px;
-              font-weight: bold;
-              opacity: 0;
-              transition: all 0.2s ease;
-            " class="remove-icon">×</div>
-            <div style="
-              position: absolute;
-              bottom: 0;
-              left: 0;
-              right: 0;
-              background: linear-gradient(transparent, rgba(0,0,0,0.8));
-              color: white;
-              padding: 8px;
-              font-size: 12px;
-              text-align: center;
-              white-space: nowrap;
-              overflow: hidden;
-              text-overflow: ellipsis;
-            ">${file.name}</div>
-          </div>
-        `;
-
-        const previewElement = preview.firstElementChild;
-        previewElement.addEventListener('mouseenter', () => {
-          previewElement.style.transform = 'scale(1.05)';
-          previewElement.querySelector('.remove-icon').style.opacity = '1';
-        });
-        previewElement.addEventListener('mouseleave', () => {
-          previewElement.style.transform = 'scale(1)';
-          previewElement.querySelector('.remove-icon').style.opacity = '0';
-        });
-
-        resolve(preview);
-      };
-      reader.readAsDataURL(file);
-    });
-  }
-
-  removeFileFromUpload(index) {
-    this.pendingFiles.splice(index, 1);
-    
-    if (this.pendingFiles.length > 0) {
-      this.showUploadConfirmation();
-    } else {
-      this.hideConfirmationModal();
-      this.resetUploadSection();
-    }
-  }
-
-  hideConfirmationModal() {
-    const confirmModal = document.getElementById('uploadConfirmModal');
-    if (confirmModal) {
-      confirmModal.classList.add('hidden');
-    }
-  }
-
-  cancelUpload() {
-    this.pendingFiles = [];
-    if (this.fileInput) {
-      this.fileInput.value = '';
-    }
-    this.hideConfirmationModal();
-    this.resetUploadSection();
-    this.updateUploadButton();
-    
-    const quickUploadBtn = document.getElementById('quickUploadBtn');
-    if (quickUploadBtn) {
-      quickUploadBtn.style.display = 'none';
-    }
-  }
-
-  async proceedWithUpload() {
-    this.hideConfirmationModal();
-    await this.uploadFiles();
-  }
-
+  // OPTIMIZED PARALLEL UPLOAD
   async uploadFiles() {
-    if (!window.isLoggedIn()) {
-      alert('Please log in to upload photos');
-      return;
-    }
+    if (!window.isLoggedIn() || this.isUploading) return;
 
     const userProfile = window.getCurrentUserProfile();
     if (!userProfile) {
-      alert('User profile not found');
+      this.showError('User profile not found');
       return;
     }
 
     const files = this.pendingFiles;
     if (files.length === 0) return;
 
-    if (this.uploadBtn) {
-      this.uploadBtn.disabled = true;
-      this.uploadBtn.textContent = 'Uploading...';
-    }
-    this.showProgress(true);
+    this.isUploading = true;
+    this.updateUploadButton();
+    this.showProgress(true, 'Uploading photos...');
 
     const results = { successful: [], failed: [] };
+    let completed = 0;
 
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      const progress = ((i + 1) / files.length) * 100;
-      
-      this.updateProgress(progress);
-      if (this.uploadBtn) {
-        const suffix = this.currentUserIsLossless ? ' (Lossless)' : '';
-        this.uploadBtn.textContent = `Uploading${suffix}... (${i + 1}/${files.length})`;
+    try {
+      // Process files in batches for optimal performance
+      for (let i = 0; i < files.length; i += this.UPLOAD_BATCH_SIZE) {
+        const batch = files.slice(i, i + this.UPLOAD_BATCH_SIZE);
+        
+        // Upload batch in parallel
+        const batchPromises = batch.map(async (file) => {
+          try {
+            // Upload to Google Drive
+            const uploadResult = await supabaseHelpers.uploadPhoto(file, userProfile.username);
+            
+            if (uploadResult.error) {
+              throw new Error(uploadResult.error);
+            }
+
+            // Save metadata
+            const photoData = {
+              username: userProfile.username,
+              filename: `${Date.now()}_${file.name}`,
+              original_name: file.name,
+              publicUrl: uploadResult.data.publicUrl,
+              fileId: uploadResult.data.fileId,
+              file_size: file.size
+            };
+
+            const metadataResult = await supabaseHelpers.savePhotoMetadata(photoData, userProfile);
+            
+            if (metadataResult.error) {
+              throw new Error(metadataResult.error.message);
+            }
+
+            results.successful.push(file.name);
+            
+          } catch (error) {
+            console.error(`Upload failed for ${file.name}:`, error);
+            results.failed.push({ file: file.name, error: error.message });
+          } finally {
+            completed++;
+            this.updateProgress((completed / files.length) * 100);
+          }
+        });
+
+        // Wait for this batch to complete before starting the next
+        await Promise.all(batchPromises);
       }
 
-      try {
-        const uploadResult = await supabaseHelpers.uploadPhoto(file, userProfile.username);
-        
-        if (uploadResult.error) {
-          results.failed.push({ file: file.name, error: uploadResult.error });
-          continue;
-        }
-
-        const photoData = {
-          username: userProfile.username,
-          filename: `${Date.now()}_${file.name}`,
-          original_name: file.name,
-          publicUrl: uploadResult.data.publicUrl,
-          fileId: uploadResult.data.fileId,
-          file_size: file.size
-        };
-
-        const metadataResult = await supabaseHelpers.savePhotoMetadata(photoData, userProfile);
-        
-        if (metadataResult.error) {
-          results.failed.push({ file: file.name, error: metadataResult.error.message });
-        } else {
-          results.successful.push(file.name);
-        }
-
-      } catch (error) {
-        results.failed.push({ file: file.name, error: error.message });
-      }
+    } catch (error) {
+      console.error('Batch upload error:', error);
     }
 
+    // Cleanup and show results
+    this.isUploading = false;
     this.showProgress(false);
-    if (this.uploadBtn) {
-      this.uploadBtn.disabled = false;
-    }
     this.updateUploadButton();
 
     if (results.failed.length > 0) {
       const failedNames = results.failed.map(f => f.file).join(', ');
-      alert(`Failed to upload: ${failedNames}`);
-    } else {
-      this.pendingFiles = [];
-      if (this.fileInput) {
-        this.fileInput.value = '';
-      }
-      this.resetUploadSection();
-      
-      const quickUploadBtn = document.getElementById('quickUploadBtn');
-      if (quickUploadBtn) {
-        quickUploadBtn.style.display = 'none';
-      }
+      this.showError(`Failed to upload: ${failedNames}`);
     }
 
+    if (results.successful.length > 0) {
+      this.showSuccess(`Successfully uploaded ${results.successful.length} photo${results.successful.length > 1 ? 's' : ''}!`);
+      this.pendingFiles = [];
+      if (this.fileInput) this.fileInput.value = '';
+      this.resetUploadSection();
+    }
+
+    // Reload photos
     await this.loadUserPhotos();
   }
 
-  // Enhanced reset method
-  resetUploadSection() {
-    const uploadText = document.querySelector('.upload-text');
-    const uploadSubtext = document.querySelector('.upload-subtext');
-    
-    if (uploadText) {
-      uploadText.textContent = 'Drop your photos here or click to browse';
-    }
-    if (uploadSubtext) {
-      uploadSubtext.classList.remove('has-files');
-      this.updateUploadSectionText(); // This will show the current user's limit
-    }
-  }
-
-  showProgress(show) {
-    if (this.progressBar) {
-      if (show) {
-        this.progressBar.style.display = 'block';
-      } else {
-        this.progressBar.style.display = 'none';
-        this.updateProgress(0);
-      }
-    }
-  }
-
-  updateProgress(percent) {
-    if (this.progressBarFill) {
-      this.progressBarFill.style.width = `${percent}%`;
-    }
-  }
-
   async loadUserPhotos() {
-  console.log('=== loadUserPhotos called ===');
-  
-  const userProfile = window.getCurrentUserProfile();
-  console.log('User profile:', userProfile);
-  
-  if (!userProfile) {
-    console.log('❌ No user profile found - skipping photo load');
-    // Don't break, just show empty state
-    if (this.photoList) {
-      this.photoList.innerHTML = `
-        <div class="empty-state">
-          <div class="empty-state-icon">📷</div>
-          <div>Please log in to manage photos</div>
-        </div>
-      `;
-    }
-    return;
-  }
+    const userProfile = window.getCurrentUserProfile();
+    if (!userProfile) {
+  return; // Just return immediately, don't do anything
+}
 
     try {
-      console.log(`🔍 Fetching photos for username: ${userProfile.username}`);
-      
       const { data: photos, error } = await supabaseHelpers.getUserPhotos(userProfile.username);
-      
-      console.log('Supabase response:', { photos: photos?.length, error });
       
       if (error) {
         console.error('Error loading user photos:', error);
         return;
       }
 
-      console.log(`📸 Found ${photos?.length || 0} photos`);
-      
-      if (photos && photos.length > 0) {
-        console.log('Sample photo:', photos[0]);
-      }
-
+      this.totalUserPhotos = photos?.length || 0;
+      this.updateUploadSectionText();
       this.displayUserPhotos(photos || []);
       
     } catch (error) {
@@ -770,248 +473,251 @@ class ImageUploadManager {
   }
 
   displayUserPhotos(photos) {
-    console.log('=== displayUserPhotos called ===');
-    console.log('Photos to display:', photos?.length);
-    console.log('photoList element:', this.photoList);
-    
-    if (!this.photoList) {
-      console.error('❌ photoList element not found!');
-      return;
-    }
+    if (!this.photoList) return;
     
     if (!photos || photos.length === 0) {
-      console.log('📝 Showing empty state');
       this.photoList.innerHTML = `
         <div class="empty-state">
           <div class="empty-state-icon">📷</div>
           <div>No photos uploaded yet</div>
+          <div style="color: #666; font-size: 14px; margin-top: 8px;">
+            Upload up to ${this.MAX_PHOTOS_PER_USER} photos
+          </div>
         </div>
       `;
       return;
     }
 
-    console.log('🎨 Generating HTML for photos...');
-    
-    // Clear selected photos when reloading
     this.selectedPhotos.clear();
     this.editMode = false;
 
-    // Show user privileges in header
     const userPrivileges = this.currentUserIsLossless ? 
       '<span style="color: #667eea; font-size: 12px; font-weight: normal;">(Lossless uploads enabled)</span>' : '';
 
-    // Create edit/cancel button header
-    const editButtonHtml = `
-      <div class="edit-controls" style="grid-column: 1 / -1; margin-bottom: 16px;">
-        <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px; background: #222; border-radius: 8px;">
-          <div>
-            <h3 style="margin: 0; color: #fff; font-size: 18px;">Your Photos</h3>
-            ${userPrivileges}
+    // Clean header design
+    const headerHtml = `
+      <div class="photos-header" style="
+        grid-column: 1 / -1; 
+        margin-bottom: 20px;
+        display: flex; 
+        align-items: center; 
+        justify-content: space-between;
+        padding: 16px 0;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+      ">
+        <div>
+          <h3 style="margin: 0; color: #fff; font-size: 18px; font-weight: 600;">
+            Your Photos (${photos.length}/${this.MAX_PHOTOS_PER_USER})
+          </h3>
+          ${userPrivileges}
+        </div>
+        <button id="editToggleBtn" class="edit-toggle-btn">
+          Select Photos
+        </button>
+      </div>
+    `;
+
+    // Modern selection UI (hidden by default)
+    const selectionUIHtml = `
+      <div class="selection-ui" id="selectionUI" style="
+        grid-column: 1 / -1; 
+        margin-bottom: 16px; 
+        display: none;
+        background: rgba(102, 126, 234, 0.1);
+        border: 1px solid rgba(102, 126, 234, 0.3);
+        border-radius: 8px;
+        padding: 12px 16px;
+      ">
+        <div style="display: flex; align-items: center; justify-content: space-between;">
+          <div style="display: flex; align-items: center; gap: 16px;">
+            <button id="selectAllBtn" style="
+              background: none; 
+              border: 1px solid #667eea; 
+              color: #667eea; 
+              padding: 6px 12px; 
+              border-radius: 4px; 
+              font-size: 12px; 
+              cursor: pointer;
+            ">Select All</button>
+            <span id="selectedCount" style="color: #ccc; font-size: 14px;">
+              0 selected
+            </span>
           </div>
-          <button id="editToggleBtn" class="edit-toggle-btn" style="
-            background: transparent;
-            color: #667eea;
-            border: 1px solid #667eea;
-            padding: 8px 16px;
-            border-radius: 6px;
-            font-size: 14px;
+          <button id="deleteSelectedBtn" class="delete-selected-btn" style="
+            background: #ff4757; 
+            color: white; 
+            border: none; 
+            padding: 8px 16px; 
+            border-radius: 4px; 
+            font-size: 14px; 
             cursor: pointer;
-            transition: all 0.2s ease;
-          ">Edit</button>
+            opacity: 0.5;
+            pointer-events: none;
+          " disabled>Delete Selected</button>
         </div>
       </div>
     `;
 
-    // Bulk actions (hidden by default)
-    const bulkActionsHtml = `
-      <div class="bulk-actions" id="bulkActions" style="grid-column: 1 / -1; margin-bottom: 16px; display: none;">
-        <div style="display: flex; align-items: center; gap: 12px; padding: 12px; background: #333; border-radius: 8px;">
-          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-            <input type="checkbox" id="selectAllPhotos" style="margin: 0;" />
-            <span style="color: #ccc; font-size: 14px;">Select All</span>
-          </label>
-          <div class="bulk-controls" style="display: flex; align-items: center; gap: 8px; margin-left: auto;">
-            <span id="selectedCount" style="color: #999; font-size: 14px;">0 selected</span>
-            <button id="deleteSelectedBtn" class="delete-selected-btn" style="
-              background: #ff4757; 
-              color: white; 
-              border: none; 
-              padding: 6px 12px; 
-              border-radius: 6px; 
-              font-size: 12px; 
-              cursor: pointer;
-              opacity: 0.5;
-              pointer-events: none;
-            " disabled>Delete Selected</button>
-          </div>
-        </div>
-      </div>
-    `;
-    
-    const photosHtml = photos.map((photo, index) => {
+    // Load photos in batches for better performance
+    const photosToShow = photos.slice(0, this.PHOTO_LOAD_BATCH_SIZE);
+    const photosHtml = photosToShow.map((photo) => {
       const imageUrl = this.getOptimizedImageUrl(photo);
-      console.log(`Photo ${index + 1}: ${photo.filename} → ${imageUrl}`);
       
       return `
-        <div class="photo-item" data-photo-id="${photo.id}">
-          <div class="photo-checkbox" style="
-            position: absolute;
-            top: 8px;
-            left: 8px;
-            z-index: 10;
-            display: none;
-          ">
-            <input type="checkbox" class="photo-select" data-photo-id="${photo.id}" data-drive-id="${photo.drive_file_id}" style="
-              width: 18px;
-              height: 18px;
-              cursor: pointer;
-              accent-color: #667eea;
-            " />
-          </div>
+        <div class="photo-item" data-photo-id="${photo.id}" data-drive-id="${photo.drive_file_id}">
           <img src="${imageUrl}" alt="${photo.original_name}" loading="lazy" 
                onerror="uploadManager.handleImageError(this, '${photo.drive_file_id}')" />
-          <div class="photo-overlay" style="opacity: 0; transition: all 0.2s ease;">
+          <div class="photo-overlay">
             <button class="delete-btn" onclick="uploadManager.deletePhoto('${photo.id}', '${photo.drive_file_id}')">
               ×
             </button>
           </div>
+          <div class="photo-selection-indicator"></div>
         </div>
       `;
     }).join('');
+
+    // Show load more button if there are more photos
+    const loadMoreHtml = photos.length > this.PHOTO_LOAD_BATCH_SIZE ? `
+      <div class="load-more-container" style="grid-column: 1 / -1; text-align: center; margin-top: 16px;">
+        <button id="loadMoreBtn" style="
+          background: rgba(255,255,255,0.1); 
+          border: 1px solid rgba(255,255,255,0.2); 
+          color: #ccc; 
+          padding: 12px 24px; 
+          border-radius: 6px; 
+          cursor: pointer;
+        ">
+          Load ${Math.min(this.PHOTO_LOAD_BATCH_SIZE, photos.length - this.PHOTO_LOAD_BATCH_SIZE)} More Photos
+        </button>
+      </div>
+    ` : '';
     
-    console.log('📄 Setting innerHTML...');
-    this.photoList.innerHTML = editButtonHtml + bulkActionsHtml + photosHtml;
+    this.photoList.innerHTML = headerHtml + selectionUIHtml + photosHtml + loadMoreHtml;
     
-    // Setup edit toggle functionality
-    this.setupEditToggle();
-    
-    console.log('✅ displayUserPhotos complete');
+    this.setupPhotoInteractions();
+    this.setupLoadMore(photos);
   }
 
-  setupEditToggle() {
+  setupPhotoInteractions() {
     const editToggleBtn = document.getElementById('editToggleBtn');
-    const bulkActions = document.getElementById('bulkActions');
-    const photoCheckboxes = document.querySelectorAll('.photo-checkbox');
-    const photoOverlays = document.querySelectorAll('.photo-overlay');
-    
-    if (!editToggleBtn) return;
-    
-    editToggleBtn.addEventListener('click', (e) => {
-      e.preventDefault();
-      this.editMode = !this.editMode;
-      
-      if (this.editMode) {
-        // Enter edit mode
-        editToggleBtn.textContent = 'Cancel';
-        editToggleBtn.style.background = '#ff4757';
-        editToggleBtn.style.borderColor = '#ff4757';
-        editToggleBtn.style.color = 'white';
-        
-        // Show bulk actions
-        if (bulkActions) {
-          bulkActions.style.display = 'block';
-        }
-        
-        // Show checkboxes
-        photoCheckboxes.forEach(checkbox => {
-          checkbox.style.display = 'block';
-        });
-        
-        // Hide individual delete buttons
-        photoOverlays.forEach(overlay => {
-          overlay.style.display = 'none';
-        });
-        
-        // Setup bulk selection listeners
-        this.setupBulkSelectionListeners();
-        
-      } else {
-        // Exit edit mode
-        editToggleBtn.textContent = 'Edit';
-        editToggleBtn.style.background = 'transparent';
-        editToggleBtn.style.borderColor = '#667eea';
-        editToggleBtn.style.color = '#667eea';
-        
-        // Hide bulk actions
-        if (bulkActions) {
-          bulkActions.style.display = 'none';
-        }
-        
-        // Hide checkboxes
-        photoCheckboxes.forEach(checkbox => {
-          checkbox.style.display = 'none';
-          checkbox.checked = false;
-        });
-        
-        // Show individual delete buttons
-        photoOverlays.forEach(overlay => {
-          overlay.style.display = 'flex';
-        });
-        
-        // Clear selections
-        this.selectedPhotos.clear();
-      }
-    });
-  }
-
-  setupBulkSelectionListeners() {
-    const selectAllCheckbox = document.getElementById('selectAllPhotos');
+    const selectionUI = document.getElementById('selectionUI');
+    const selectAllBtn = document.getElementById('selectAllBtn');
     const deleteSelectedBtn = document.getElementById('deleteSelectedBtn');
-    const selectedCountSpan = document.getElementById('selectedCount');
-    const photoCheckboxes = document.querySelectorAll('.photo-select');
-
-    // Reset selections
-    this.selectedPhotos.clear();
-    this.updateBulkControls();
-
-    // Select all/none functionality
-    if (selectAllCheckbox) {
-      selectAllCheckbox.addEventListener('change', (e) => {
-        const isChecked = e.target.checked;
-        photoCheckboxes.forEach(checkbox => {
-          checkbox.checked = isChecked;
-          if (isChecked) {
-            this.selectedPhotos.add(checkbox.dataset.photoId);
-          } else {
-            this.selectedPhotos.delete(checkbox.dataset.photoId);
-          }
-        });
-        this.updateBulkControls();
+    
+    // Edit mode toggle
+    if (editToggleBtn) {
+      editToggleBtn.addEventListener('click', () => {
+        this.editMode = !this.editMode;
+        
+        if (this.editMode) {
+          editToggleBtn.textContent = 'Cancel';
+          editToggleBtn.style.background = '#ff4757';
+          editToggleBtn.style.borderColor = '#ff4757';
+          editToggleBtn.style.color = 'white';
+          selectionUI.style.display = 'block';
+          
+          // Hide individual delete buttons, enable photo selection
+          document.querySelectorAll('.photo-overlay').forEach(overlay => {
+            overlay.style.display = 'none';
+          });
+          
+          this.enablePhotoSelection();
+          
+        } else {
+          editToggleBtn.textContent = 'Select Photos';
+          editToggleBtn.style.background = 'transparent';
+          editToggleBtn.style.borderColor = '#667eea';
+          editToggleBtn.style.color = '#667eea';
+          selectionUI.style.display = 'none';
+          
+          // Show individual delete buttons, disable photo selection
+          document.querySelectorAll('.photo-overlay').forEach(overlay => {
+            overlay.style.display = 'flex';
+          });
+          
+          this.disablePhotoSelection();
+        }
       });
     }
 
-    // Individual photo selection
-    photoCheckboxes.forEach(checkbox => {
-      checkbox.addEventListener('change', (e) => {
-        const photoId = e.target.dataset.photoId;
-        if (e.target.checked) {
-          this.selectedPhotos.add(photoId);
+    // Select all functionality
+    if (selectAllBtn) {
+      selectAllBtn.addEventListener('click', () => {
+        const photoItems = document.querySelectorAll('.photo-item');
+        const allSelected = this.selectedPhotos.size === photoItems.length;
+        
+        if (allSelected) {
+          // Deselect all
+          this.selectedPhotos.clear();
+          photoItems.forEach(item => item.classList.remove('selected'));
+          selectAllBtn.textContent = 'Select All';
         } else {
-          this.selectedPhotos.delete(photoId);
-          if (selectAllCheckbox) {
-            selectAllCheckbox.checked = false;
-          }
+          // Select all
+          photoItems.forEach(item => {
+            const photoId = item.dataset.photoId;
+            this.selectedPhotos.add(photoId);
+            item.classList.add('selected');
+          });
+          selectAllBtn.textContent = 'Deselect All';
         }
-        this.updateBulkControls();
+        
+        this.updateSelectionUI();
       });
-    });
+    }
 
-    // Delete selected photos
+    // Delete selected functionality
     if (deleteSelectedBtn) {
-      deleteSelectedBtn.addEventListener('click', (e) => {
-        e.preventDefault();
+      deleteSelectedBtn.addEventListener('click', () => {
         this.deleteSelectedPhotos();
       });
     }
   }
 
-  updateBulkControls() {
-    const selectedCountSpan = document.getElementById('selectedCount');
+  enablePhotoSelection() {
+    const photoItems = document.querySelectorAll('.photo-item');
+    
+    photoItems.forEach(item => {
+      item.style.cursor = 'pointer';
+      item.addEventListener('click', this.handlePhotoSelect.bind(this));
+    });
+  }
+
+  disablePhotoSelection() {
+    const photoItems = document.querySelectorAll('.photo-item');
+    
+    photoItems.forEach(item => {
+      item.style.cursor = 'default';
+      item.classList.remove('selected');
+      item.removeEventListener('click', this.handlePhotoSelect.bind(this));
+    });
+    
+    this.selectedPhotos.clear();
+  }
+
+  handlePhotoSelect(event) {
+    const photoItem = event.currentTarget;
+    const photoId = photoItem.dataset.photoId;
+    
+    if (this.selectedPhotos.has(photoId)) {
+      this.selectedPhotos.delete(photoId);
+      photoItem.classList.remove('selected');
+    } else {
+      this.selectedPhotos.add(photoId);
+      photoItem.classList.add('selected');
+    }
+    
+    this.updateSelectionUI();
+  }
+
+  updateSelectionUI() {
+    const selectedCount = document.getElementById('selectedCount');
     const deleteSelectedBtn = document.getElementById('deleteSelectedBtn');
+    const selectAllBtn = document.getElementById('selectAllBtn');
     const count = this.selectedPhotos.size;
 
-    if (selectedCountSpan) {
-      selectedCountSpan.textContent = `${count} selected`;
+    if (selectedCount) {
+      selectedCount.textContent = `${count} selected`;
     }
 
     if (deleteSelectedBtn) {
@@ -1027,8 +733,61 @@ class ImageUploadManager {
         deleteSelectedBtn.textContent = 'Delete Selected';
       }
     }
+
+    // Update select all button text
+    if (selectAllBtn) {
+      const totalPhotos = document.querySelectorAll('.photo-item').length;
+      selectAllBtn.textContent = count === totalPhotos ? 'Deselect All' : 'Select All';
+    }
   }
 
+  setupLoadMore(allPhotos) {
+    const loadMoreBtn = document.getElementById('loadMoreBtn');
+    let currentlyLoaded = this.PHOTO_LOAD_BATCH_SIZE;
+    
+    if (loadMoreBtn) {
+      loadMoreBtn.addEventListener('click', () => {
+        const nextBatch = allPhotos.slice(currentlyLoaded, currentlyLoaded + this.PHOTO_LOAD_BATCH_SIZE);
+        
+        const photosHtml = nextBatch.map((photo) => {
+          const imageUrl = this.getOptimizedImageUrl(photo);
+          
+          return `
+            <div class="photo-item" data-photo-id="${photo.id}" data-drive-id="${photo.drive_file_id}">
+              <img src="${imageUrl}" alt="${photo.original_name}" loading="lazy" 
+                   onerror="uploadManager.handleImageError(this, '${photo.drive_file_id}')" />
+              <div class="photo-overlay">
+                <button class="delete-btn" onclick="uploadManager.deletePhoto('${photo.id}', '${photo.drive_file_id}')">
+                  ×
+                </button>
+              </div>
+              <div class="photo-selection-indicator"></div>
+            </div>
+          `;
+        }).join('');
+        
+        // Insert new photos before the load more button
+        loadMoreBtn.parentElement.insertAdjacentHTML('beforebegin', photosHtml);
+        
+        currentlyLoaded += nextBatch.length;
+        
+        // Update or remove load more button
+        if (currentlyLoaded >= allPhotos.length) {
+          loadMoreBtn.parentElement.remove();
+        } else {
+          const remaining = allPhotos.length - currentlyLoaded;
+          loadMoreBtn.textContent = `Load ${Math.min(this.PHOTO_LOAD_BATCH_SIZE, remaining)} More Photos`;
+        }
+        
+        // Re-setup interactions for new photos if in edit mode
+        if (this.editMode) {
+          this.enablePhotoSelection();
+        }
+      });
+    }
+  }
+
+  // OPTIMIZED BULK DELETE
   async deleteSelectedPhotos() {
     if (this.selectedPhotos.size === 0) return;
 
@@ -1040,56 +799,95 @@ class ImageUploadManager {
     const deleteSelectedBtn = document.getElementById('deleteSelectedBtn');
     const editToggleBtn = document.getElementById('editToggleBtn');
     
+    if (deleteSelectedBtn) {
+      deleteSelectedBtn.textContent = 'Deleting...';
+      deleteSelectedBtn.disabled = true;
+    }
+    
     if (editToggleBtn) {
       editToggleBtn.disabled = true;
     }
 
     const selectedPhotoIds = Array.from(this.selectedPhotos);
-    const results = { successful: 0, failed: 0 };
+    const selectedPhotosData = selectedPhotoIds.map(photoId => {
+      const photoElement = document.querySelector(`[data-photo-id="${photoId}"]`);
+      return {
+        photoId,
+        driveFileId: photoElement?.dataset.driveId
+      };
+    });
 
-    for (const photoId of selectedPhotoIds) {
+    // PARALLEL DELETE - much faster than sequential
+    const deletePromises = selectedPhotosData.map(async ({ photoId, driveFileId }) => {
       try {
-        const checkbox = document.querySelector(`[data-photo-id="${photoId}"]`);
-        const driveFileId = checkbox?.dataset.driveId;
-
         const { error } = await supabaseHelpers.deletePhoto(photoId, driveFileId);
-        
         if (error) {
           console.error(`Delete failed for photo ${photoId}:`, error);
-          results.failed++;
-        } else {
-          console.log(`✅ Deleted photo ${photoId}`);
-          results.successful++;
+          return { success: false, photoId };
         }
+        return { success: true, photoId };
       } catch (error) {
         console.error(`Error deleting photo ${photoId}:`, error);
-        results.failed++;
+        return { success: false, photoId };
       }
-    }
+    });
+
+    const results = await Promise.all(deletePromises);
+    const successful = results.filter(r => r.success).length;
+    const failed = results.filter(r => !r.success).length;
 
     // Show results
-    if (results.failed > 0) {
-      alert(`Deleted ${results.successful} photos. ${results.failed} failed to delete.`);
+    if (failed > 0) {
+      this.showError(`Deleted ${successful} photos. ${failed} failed to delete.`);
     } else {
-      console.log(`✅ Successfully deleted ${results.successful} photos`);
+      this.showSuccess(`Successfully deleted ${successful} photo${successful > 1 ? 's' : ''}!`);
     }
 
-    // Clear selection and reload photos
+    // Reset UI and reload
     this.selectedPhotos.clear();
     this.editMode = false;
     await this.loadUserPhotos();
   }
 
+  async deletePhoto(photoId, driveFileId) {
+    if (!confirm('Are you sure you want to delete this photo?')) {
+      return;
+    }
+
+    try {
+      const { error } = await supabaseHelpers.deletePhoto(photoId, driveFileId);
+      
+      if (error) {
+        this.showError('Failed to delete photo. Please try again.');
+        return;
+      }
+
+      // Optimistic update - remove from UI immediately
+      const photoElement = document.querySelector(`[data-photo-id="${photoId}"]`);
+      if (photoElement) {
+        photoElement.style.opacity = '0.5';
+        photoElement.style.transform = 'scale(0.8)';
+        setTimeout(() => photoElement.remove(), 200);
+      }
+
+      this.totalUserPhotos--;
+      this.updateUploadSectionText();
+      
+    } catch (error) {
+      console.error('Delete error:', error);
+      this.showError('Failed to delete photo. Please try again.');
+    }
+  }
+
   getOptimizedImageUrl(photo) {
     if (photo.drive_file_id) {
+      // Use thumbnail size for grid view - faster loading
       return `https://lh3.googleusercontent.com/d/${photo.drive_file_id}=w400-h400-c`;
     }
     return photo.file_url;
   }
 
   handleImageError(imgElement, driveFileId) {
-    console.log(`Image failed to load for drive ID: ${driveFileId}`);
-    
     const fallbackUrls = [
       `https://drive.google.com/uc?export=view&id=${driveFileId}`,
       `https://lh3.googleusercontent.com/d/${driveFileId}=w400`,
@@ -1101,7 +899,6 @@ class ImageUploadManager {
     const nextFallback = fallbackUrls.find(url => url !== currentSrc);
 
     if (nextFallback) {
-      console.log(`Trying fallback URL: ${nextFallback}`);
       imgElement.src = nextFallback;
     } else {
       imgElement.style.display = 'none';
@@ -1124,30 +921,116 @@ class ImageUploadManager {
     }
   }
 
-  async deletePhoto(photoId, driveFileId) {
-    if (!confirm('Are you sure you want to delete this photo?')) {
-      return;
+  resetUploadSection() {
+    const uploadText = document.querySelector('.upload-text');
+    const uploadSubtext = document.querySelector('.upload-subtext');
+    
+    if (uploadText) {
+      uploadText.textContent = 'Drop your photos here or click to browse';
+    }
+    if (uploadSubtext) {
+      uploadSubtext.classList.remove('has-files');
+      this.updateUploadSectionText();
+    }
+    
+    if (this.uploadSection) {
+      this.uploadSection.classList.remove('has-files');
+    }
+  }
+
+  showProgress(show, message = 'Processing...') {
+    if (this.progressBar) {
+      if (show) {
+        this.progressBar.style.display = 'block';
+        // Add progress message
+        let progressText = this.progressBar.querySelector('.progress-text');
+        if (!progressText) {
+          progressText = document.createElement('div');
+          progressText.className = 'progress-text';
+          progressText.style.cssText = 'color: #ccc; font-size: 12px; text-align: center; margin-top: 8px;';
+          this.progressBar.appendChild(progressText);
+        }
+        progressText.textContent = message;
+      } else {
+        this.progressBar.style.display = 'none';
+        this.updateProgress(0);
+      }
+    }
+  }
+
+  updateProgress(percent) {
+    if (this.progressBarFill) {
+      this.progressBarFill.style.width = `${Math.round(percent)}%`;
+    }
+    
+    const progressText = this.progressBar?.querySelector('.progress-text');
+    if (progressText && percent > 0) {
+      progressText.textContent = `${Math.round(percent)}% complete`;
+    }
+  }
+
+  showError(message) {
+    // Simple toast notification
+    this.showToast(message, 'error');
+  }
+
+  showSuccess(message) {
+    this.showToast(message, 'success');
+  }
+
+  showWarning(message) {
+    this.showToast(message, 'warning');
+  }
+
+  showToast(message, type = 'info') {
+    // Remove any existing toast
+    const existingToast = document.querySelector('.upload-toast');
+    if (existingToast) {
+      existingToast.remove();
     }
 
-    try {
-      const { error } = await supabaseHelpers.deletePhoto(photoId, driveFileId);
-      
-      if (error) {
-        alert('Failed to delete photo. Please try again.');
-        return;
-      }
+    const toast = document.createElement('div');
+    toast.className = 'upload-toast';
+    toast.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      padding: 12px 16px;
+      border-radius: 6px;
+      color: white;
+      font-size: 14px;
+      font-weight: 500;
+      z-index: 10000;
+      max-width: 300px;
+      animation: slideInRight 0.3s ease-out;
+      cursor: pointer;
+    `;
 
-      const photoElement = document.querySelector(`[data-photo-id="${photoId}"]`);
-      if (photoElement) {
-        photoElement.remove();
-      }
+    const colors = {
+      error: '#ff4757',
+      success: '#2ed573',
+      warning: '#ffa502',
+      info: '#667eea'
+    };
 
-      await this.loadUserPhotos();
-      
-    } catch (error) {
-      console.error('Delete error:', error);
-      alert('Failed to delete photo. Please try again.');
-    }
+    toast.style.background = colors[type] || colors.info;
+    toast.textContent = message;
+
+    document.body.appendChild(toast);
+
+    // Auto-remove after 4 seconds
+    setTimeout(() => {
+      if (toast.parentNode) {
+        toast.style.animation = 'slideOutRight 0.3s ease-in';
+        setTimeout(() => toast.remove(), 300);
+      }
+    }, 4000);
+
+    // Click to dismiss
+    toast.addEventListener('click', () => {
+      toast.style.animation = 'slideOutRight 0.3s ease-in';
+      setTimeout(() => toast.remove(), 300);
+    });
   }
 
   formatFileSize(bytes) {
@@ -1166,15 +1049,3 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Make manager available globally
 window.ImageUploadManager = ImageUploadManager;
-
-// Test function
-window.testPhotoLoad = async function() {
-  console.log('🧪 Manual test photo load...');
-  if (window.uploadManager) {
-    await window.uploadManager.loadUserPhotos();
-  } else {
-    console.error('❌ uploadManager not found');
-  }
-};
-
-console.log('📸 Enhanced upload manager loaded with lossless support for eldricarpilleda and colai');
