@@ -725,15 +725,24 @@ class ImageUploadManager {
   }
 
   async loadUserPhotos() {
-    console.log('=== loadUserPhotos called ===');
-    
-    const userProfile = window.getCurrentUserProfile();
-    console.log('User profile:', userProfile);
-    
-    if (!userProfile) {
-      console.log('❌ No user profile found');
-      return;
+  console.log('=== loadUserPhotos called ===');
+  
+  const userProfile = window.getCurrentUserProfile();
+  console.log('User profile:', userProfile);
+  
+  if (!userProfile) {
+    console.log('❌ No user profile found - skipping photo load');
+    // Don't break, just show empty state
+    if (this.photoList) {
+      this.photoList.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-state-icon">📷</div>
+          <div>Please log in to manage photos</div>
+        </div>
+      `;
     }
+    return;
+  }
 
     try {
       console.log(`🔍 Fetching photos for username: ${userProfile.username}`);
