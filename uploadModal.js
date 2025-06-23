@@ -8,18 +8,16 @@ class ImageUploadManager {
     
     // User-specific upload limits (in bytes)
     this.userUploadLimits = {
-      'eldricarpilleda': 50 * 1024 * 1024,
-      'colaivalencia': 50 * 1024 * 1024, // 50MB for eldricarpilleda (lossless)
+      'eldricarpilleda': 50 * 1024 * 1024, // 50MB for eldricarpilleda (lossless)
     };
     
     // User-specific lossless upload permissions
-    this.losslessUsers = new Set(['eldricarpilleda', 'colaivalencia']);
+    this.losslessUsers = new Set(['eldricarpilleda']);
     
     // User-specific resolution limits
     this.userResolutionLimits = {
       'eldricarpilleda': null, // null = no resolution limit
       // Other users will use the default 2048px limit
-      'colaivalencia': null,
     };
     
     this.defaultMaxDimension = 2048;
@@ -833,3 +831,339 @@ class ImageUploadManager {
               cursor: pointer;
               opacity: 0.5;
               pointer-events: none;
+            " disabled>Delete Selected</button>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    const photosHtml = photos.map((photo, index) => {
+      const imageUrl = this.getOptimizedImageUrl(photo);
+      console.log(`Photo ${index + 1}: ${photo.filename} → ${imageUrl}`);
+      
+      return `
+        <div class="photo-item" data-photo-id="${photo.id}">
+          <div class="photo-checkbox" style="
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            z-index: 10;
+            display: none;
+          ">
+            <input type="checkbox" class="photo-select" data-photo-id="${photo.id}" data-drive-id="${photo.drive_file_id}" style="
+              width: 18px;
+              height: 18px;
+              cursor: pointer;
+              accent-color: #667eea;
+            " />
+          </div>
+          <img src="${imageUrl}" alt="${photo.original_name}" loading="lazy" 
+               onerror="uploadManager.handleImageError(this, '${photo.drive_file_id}')" />
+          <div class="photo-overlay" style="opacity: 0; transition: all 0.2s ease;">
+            <button class="delete-btn" onclick="uploadManager.deletePhoto('${photo.id}', '${photo.drive_file_id}')">
+              ×
+            </button>
+          </div>
+        </div>
+      `;
+    }).join('');
+    
+    console.log('📄 Setting innerHTML...');
+    this.photoList.innerHTML = editButtonHtml + bulkActionsHtml + photosHtml;
+    
+    // Setup edit toggle functionality
+    this.setupEditToggle();
+    
+    console.log('✅ displayUserPhotos complete');
+  }
+
+  setupEditToggle() {
+    const editToggleBtn = document.getElementById('editToggleBtn');
+    const bulkActions = document.getElementById('bulkActions');
+    const photoCheckboxes = document.querySelectorAll('.photo-checkbox');
+    const photoOverlays = document.querySelectorAll('.photo-overlay');
+    
+    if (!editToggleBtn) return;
+    
+    editToggleBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      this.editMode = !this.editMode;
+      
+      if (this.editMode) {
+        // Enter edit mode
+        editToggleBtn.textContent = 'Cancel';
+        editToggleBtn.style.background = '#ff4757';
+        editToggleBtn.style.borderColor = '#ff4757';
+        editToggleBtn.style.color = 'white';
+        
+        // Show bulk actions
+        if (bulkActions) {
+          bulkActions.style.display = 'block';
+        }
+        
+        // Show checkboxes
+        photoCheckboxes.forEach(checkbox => {
+          checkbox.style.display = 'block';
+        });
+        
+        // Hide individual delete buttons
+        photoOverlays.forEach(overlay => {
+          overlay.style.display = 'none';
+        });
+        
+        // Setup bulk selection listeners
+        this.setupBulkSelectionListeners();
+        
+      } else {
+        // Exit edit mode
+        editToggleBtn.textContent = 'Edit';
+        editToggleBtn.style.background = 'transparent';
+        editToggleBtn.style.borderColor = '#667eea';
+        editToggleBtn.style.color = '#667eea';
+        
+        // Hide bulk actions
+        if (bulkActions) {
+          bulkActions.style.display = 'none';
+        }
+        
+        // Hide checkboxes
+        photoCheckboxes.forEach(checkbox => {
+          checkbox.style.display = 'none';
+          checkbox.checked = false;
+        });
+        
+        // Show individual delete buttons
+        photoOverlays.forEach(overlay => {
+          overlay.style.display = 'flex';
+        });
+        
+        // Clear selections
+        this.selectedPhotos.clear();
+      }
+    });
+  }
+
+  setupBulkSelectionListeners() {
+    const selectAllCheckbox = document.getElementById('selectAllPhotos');
+    const deleteSelectedBtn = document.getElementById('deleteSelectedBtn');
+    const selectedCountSpan = document.getElementById('selectedCount');
+    const photoCheckboxes = document.querySelectorAll('.photo-select');
+
+    // Reset selections
+    this.selectedPhotos.clear();
+    this.updateBulkControls();
+
+    // Select all/none functionality
+    if (selectAllCheckbox) {
+      selectAllCheckbox.addEventListener('change', (e) => {
+        const isChecked = e.target.checked;
+        photoCheckboxes.forEach(checkbox => {
+          checkbox.checked = isChecked;
+          if (isChecked) {
+            this.selectedPhotos.add(checkbox.dataset.photoId);
+          } else {
+            this.selectedPhotos.delete(checkbox.dataset.photoId);
+          }
+        });
+        this.updateBulkControls();
+      });
+    }
+
+    // Individual photo selection
+    photoCheckboxes.forEach(checkbox => {
+      checkbox.addEventListener('change', (e) => {
+        const photoId = e.target.dataset.photoId;
+        if (e.target.checked) {
+          this.selectedPhotos.add(photoId);
+        } else {
+          this.selectedPhotos.delete(photoId);
+          if (selectAllCheckbox) {
+            selectAllCheckbox.checked = false;
+          }
+        }
+        this.updateBulkControls();
+      });
+    });
+
+    // Delete selected photos
+    if (deleteSelectedBtn) {
+      deleteSelectedBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        this.deleteSelectedPhotos();
+      });
+    }
+  }
+
+  updateBulkControls() {
+    const selectedCountSpan = document.getElementById('selectedCount');
+    const deleteSelectedBtn = document.getElementById('deleteSelectedBtn');
+    const count = this.selectedPhotos.size;
+
+    if (selectedCountSpan) {
+      selectedCountSpan.textContent = `${count} selected`;
+    }
+
+    if (deleteSelectedBtn) {
+      if (count > 0) {
+        deleteSelectedBtn.disabled = false;
+        deleteSelectedBtn.style.opacity = '1';
+        deleteSelectedBtn.style.pointerEvents = 'auto';
+        deleteSelectedBtn.textContent = `Delete ${count} Photo${count > 1 ? 's' : ''}`;
+      } else {
+        deleteSelectedBtn.disabled = true;
+        deleteSelectedBtn.style.opacity = '0.5';
+        deleteSelectedBtn.style.pointerEvents = 'none';
+        deleteSelectedBtn.textContent = 'Delete Selected';
+      }
+    }
+  }
+
+  async deleteSelectedPhotos() {
+    if (this.selectedPhotos.size === 0) return;
+
+    const count = this.selectedPhotos.size;
+    if (!confirm(`Are you sure you want to delete ${count} photo${count > 1 ? 's' : ''}?`)) {
+      return;
+    }
+
+    const deleteSelectedBtn = document.getElementById('deleteSelectedBtn');
+    const editToggleBtn = document.getElementById('editToggleBtn');
+    
+    if (editToggleBtn) {
+      editToggleBtn.disabled = true;
+    }
+
+    const selectedPhotoIds = Array.from(this.selectedPhotos);
+    const results = { successful: 0, failed: 0 };
+
+    for (const photoId of selectedPhotoIds) {
+      try {
+        const checkbox = document.querySelector(`[data-photo-id="${photoId}"]`);
+        const driveFileId = checkbox?.dataset.driveId;
+
+        const { error } = await supabaseHelpers.deletePhoto(photoId, driveFileId);
+        
+        if (error) {
+          console.error(`Delete failed for photo ${photoId}:`, error);
+          results.failed++;
+        } else {
+          console.log(`✅ Deleted photo ${photoId}`);
+          results.successful++;
+        }
+      } catch (error) {
+        console.error(`Error deleting photo ${photoId}:`, error);
+        results.failed++;
+      }
+    }
+
+    // Show results
+    if (results.failed > 0) {
+      alert(`Deleted ${results.successful} photos. ${results.failed} failed to delete.`);
+    } else {
+      console.log(`✅ Successfully deleted ${results.successful} photos`);
+    }
+
+    // Clear selection and reload photos
+    this.selectedPhotos.clear();
+    this.editMode = false;
+    await this.loadUserPhotos();
+  }
+
+  getOptimizedImageUrl(photo) {
+    if (photo.drive_file_id) {
+      return `https://lh3.googleusercontent.com/d/${photo.drive_file_id}=w400-h400-c`;
+    }
+    return photo.file_url;
+  }
+
+  handleImageError(imgElement, driveFileId) {
+    console.log(`Image failed to load for drive ID: ${driveFileId}`);
+    
+    const fallbackUrls = [
+      `https://drive.google.com/uc?export=view&id=${driveFileId}`,
+      `https://lh3.googleusercontent.com/d/${driveFileId}=w400`,
+      `https://drive.google.com/thumbnail?id=${driveFileId}&sz=w400`,
+      `https://lh3.googleusercontent.com/d/${driveFileId}`
+    ];
+
+    const currentSrc = imgElement.src;
+    const nextFallback = fallbackUrls.find(url => url !== currentSrc);
+
+    if (nextFallback) {
+      console.log(`Trying fallback URL: ${nextFallback}`);
+      imgElement.src = nextFallback;
+    } else {
+      imgElement.style.display = 'none';
+      imgElement.parentElement.innerHTML = `
+        <div style="
+          width: 100%;
+          height: 100%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: #333;
+          color: #666;
+          flex-direction: column;
+          gap: 8px;
+        ">
+          <div style="font-size: 2rem;">📷</div>
+          <div style="font-size: 0.8rem;">Image unavailable</div>
+        </div>
+      `;
+    }
+  }
+
+  async deletePhoto(photoId, driveFileId) {
+    if (!confirm('Are you sure you want to delete this photo?')) {
+      return;
+    }
+
+    try {
+      const { error } = await supabaseHelpers.deletePhoto(photoId, driveFileId);
+      
+      if (error) {
+        alert('Failed to delete photo. Please try again.');
+        return;
+      }
+
+      const photoElement = document.querySelector(`[data-photo-id="${photoId}"]`);
+      if (photoElement) {
+        photoElement.remove();
+      }
+
+      await this.loadUserPhotos();
+      
+    } catch (error) {
+      console.error('Delete error:', error);
+      alert('Failed to delete photo. Please try again.');
+    }
+  }
+
+  formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  }
+}
+
+// Initialize upload manager when DOM is ready
+document.addEventListener('DOMContentLoaded', () => {
+  window.uploadManager = new ImageUploadManager();
+});
+
+// Make manager available globally
+window.ImageUploadManager = ImageUploadManager;
+
+// Test function
+window.testPhotoLoad = async function() {
+  console.log('🧪 Manual test photo load...');
+  if (window.uploadManager) {
+    await window.uploadManager.loadUserPhotos();
+  } else {
+    console.error('❌ uploadManager not found');
+  }
+};
+
+console.log('📸 Enhanced upload manager loaded with lossless support for eldricarpilleda');
