@@ -8,7 +8,7 @@ class DamnPicturesRouter {
 
   init() {
     // Handle initial page load with refresh detection
-    window.addEventListener('load', () => {
+   window.addEventListener('DOMContentLoaded', () => {
       // Check if this was a refresh on a user page
       if (this.wasPageRefreshed() && window.location.pathname.startsWith('/u/')) {
         console.log('Refresh detected on user page, redirecting to random user')
@@ -60,26 +60,16 @@ class DamnPicturesRouter {
   }
 
   async waitForDependencies(callback) {
-  const maxAttempts = 10;
-  let attempts = 0;
-  
-  const checkReady = async () => {
-    if (window.supabase && window.supabaseHelpers) {
-      console.log('✅ All dependencies loaded');
-      callback();
-    } else if (attempts < maxAttempts) {
-      attempts++;
-      console.log(`⌛ Waiting for dependencies (attempt ${attempts})...`);
-      await new Promise(resolve => setTimeout(resolve, 300));
-      checkReady();
-    } else {
-      console.error('❌ Dependencies not loaded after max attempts');
-      this.showErrorState();
+    // Simple wait for required dependencies
+    const checkReady = () => {
+      if (window.supabaseHelpers && window.supabase) {
+        callback()
+      } else {
+        setTimeout(checkReady, 100)
+      }
     }
-  };
-  
-  checkReady();
-}
+    checkReady()
+  }
 
   async handleRoute() {
     const path = window.location.pathname

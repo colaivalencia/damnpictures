@@ -5,22 +5,12 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 // Wait for Supabase library before initializing
 let supabase = null
 
-// Replace the current initSupabase() with:
-async function initSupabase() {
-  const maxAttempts = 10;
-  let attempts = 0;
-  
-  while (!window.supabase && attempts < maxAttempts) {
-    await new Promise(resolve => setTimeout(resolve, 300));
-    attempts++;
-  }
-  
+function initSupabase() {
   if (window.supabase) {
-    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    window.supabase = supabase;
-    console.log('✅ Supabase initialized successfully');
+    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+    window.supabase = supabase
   } else {
-    console.error('❌ Failed to initialize Supabase - library not loaded');
+    setTimeout(initSupabase, 100)
   }
 }
 
