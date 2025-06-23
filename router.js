@@ -113,14 +113,8 @@ class DamnPicturesRouter {
     
     try {
       this.currentUser = username
-      document.title = `${username} - damnpictures`
       
-      // Update header menu
-      if (window.authManager?.headerMenuManager) {
-        window.authManager.headerMenuManager.onViewingUserChange(username)
-      }
-
-      // Load user's photos
+      // Load user's photos FIRST
       const { data: photos, error } = await window.supabaseHelpers.getUserPhotos(username)
       
       if (error) {
@@ -133,6 +127,14 @@ class DamnPicturesRouter {
         console.log('No photos found for user:', username)
         this.showEmptyUserState(username)
         return
+      }
+
+      // Only update UI AFTER photos are successfully loaded
+      document.title = `${username} - damnpictures`
+      
+      // Update header menu
+      if (window.authManager?.headerMenuManager) {
+        window.authManager.headerMenuManager.onViewingUserChange(username)
       }
 
       // Populate gallery
