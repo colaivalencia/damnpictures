@@ -98,7 +98,7 @@ class ImageUploadManager {
         mutations.forEach((mutation) => {
           if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
             const modal = mutation.target;
-            if (!modal.classList.contains('hidden') && window.isLoggedIn()) {
+            if (!modal.classList.contains('hidden') && window.isLoggedIn() && window.getCurrentUserProfile()) {
               this.updateUserSettings();
               this.loadUserPhotos();
             }
