@@ -1,35 +1,20 @@
-// Simple auth - just login and upload
+// Enhanced AuthManager with FIXED Modal Exit Controls
 class AuthManager {
   constructor() {
     this.currentUser = null;
     this.currentUserProfile = null;
+    this.usernameCheckTimeout = null;
     this.headerMenuManager = null;
     this.init();
   }
 
   init() {
     this.setupEventListeners();
+    this.setupValidation();
     this.initializeHeaderMenu();
-    this.checkAuthState();
-  }
-
-  async checkAuthState() {
-    // Wait for supabase
-    while (!window.supabase) {
-      await new Promise(resolve => setTimeout(resolve, 100));
-    }
     
-    // Check if user is logged in
-    const { data: { session } } = await window.supabase.auth.getSession();
-    
-    if (session && session.user) {
-      this.handleUserSignedIn(session.user);
-    } else {
-      this.handleUserSignedOut();
-    }
-
-    // Listen for auth changes
-    window.supabase.auth.onAuthStateChange((event, session) => {
+    // Auth state listener
+    supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_IN' && session) {
         this.handleUserSignedIn(session.user);
       } else if (event === 'SIGNED_OUT') {
@@ -39,20 +24,24 @@ class AuthManager {
   }
 
   initializeHeaderMenu() {
+    // Initialize header menu manager
     this.headerMenuManager = new HeaderMenuManager();
   }
 
   setupEventListeners() {
-    // Wait for DOM
+    // Wait for DOM to be fully loaded
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', () => {
-        this.attachEventListeners();
+        this.attachModalEventListeners();
       });
     } else {
-      this.attachEventListeners();
+      this.attachModalEventListeners();
     }
 
-    // Global escape key
+    // Setup form listeners
+    this.setupFormListeners();
+    
+    // Global escape key listener
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
         this.closeAllModals();
@@ -60,23 +49,56 @@ class AuthManager {
     });
   }
 
-  attachEventListeners() {
-    // Modal close buttons
+  attachModalEventListeners() {
+    console.log('🔗 Attaching modal event listeners...');
+    
+    // Login modal close button
     const closeModal = document.getElementById('closeModal');
     if (closeModal) {
-      closeModal.addEventListener('click', () => this.closeModal('loginModal'));
+      console.log('✅ Found login close button');
+      closeModal.addEventListener('click', (e) => {
+        console.log('🔴 Login close button clicked');
+        e.preventDefault();
+        e.stopPropagation();
+        this.closeModal('loginModal');
+      });
+    } else {
+      console.error('❌ Login close button not found');
     }
 
+    // Signup modal close button
     const closeSignupModal = document.getElementById('closeSignupModal');
     if (closeSignupModal) {
-      closeSignupModal.addEventListener('click', () => this.closeModal('signupModal'));
+      console.log('✅ Found signup close button');
+      closeSignupModal.addEventListener('click', (e) => {
+        console.log('🔴 Signup close button clicked');
+        e.preventDefault();
+        e.stopPropagation();
+        this.closeModal('signupModal');
+      });
+    } else {
+      console.error('❌ Signup close button not found');
     }
 
+    // Upload modal close button
     const closeUploadModal = document.getElementById('closeUploadModal');
     if (closeUploadModal) {
-      closeUploadModal.addEventListener('click', () => this.closeModal('uploadModal'));
+      console.log('✅ Found upload close button');
+      closeUploadModal.addEventListener('click', (e) => {
+        console.log('🔴 Upload close button clicked');
+        e.preventDefault();
+        e.stopPropagation();
+        this.closeModal('uploadModal');
+      });
+    } else {
+      console.error('❌ Upload close button not found');
     }
 
+    // Click outside to close modals
+    this.setupClickOutsideListeners();
+  }
+
+  setupFormListeners() {
     // Login form
     const loginForm = document.getElementById('loginForm');
     if (loginForm) {
@@ -103,102 +125,387 @@ class AuthManager {
         this.switchToSignup();
       });
     }
-
-    // Click outside to close
-    this.setupClickOutside();
   }
 
-  setupClickOutside() {
-    ['loginModal', 'signupModal', 'uploadModal'].forEach(modalId => {
-      const modal = document.getElementById(modalId);
-      if (modal) {
-        modal.addEventListener('click', (e) => {
-          if (e.target === modal) {
-            this.closeModal(modalId);
-          }
+  setupClickOutsideListeners() {
+    console.log('🎯 Setting up click outside listeners...');
+
+    // Login modal
+    const loginModal = document.getElementById('loginModal');
+    if (loginModal) {
+      loginModal.addEventListener('click', (e) => {
+        if (e.target === loginModal) {
+          console.log('🔴 Clicked outside login modal');
+          this.closeModal('loginModal');
+        }
+      });
+      console.log('✅ Login modal click outside listener added');
+    }
+
+    // Signup modal
+    const signupModal = document.getElementById('signupModal');
+    if (signupModal) {
+      signupModal.addEventListener('click', (e) => {
+        if (e.target === signupModal) {
+          console.log('🔴 Clicked outside signup modal');
+          this.closeModal('signupModal');
+        }
+      });
+      console.log('✅ Signup modal click outside listener added');
+    }
+
+    // Upload modal
+    const uploadModal = document.getElementById('uploadModal');
+    if (uploadModal) {
+      uploadModal.addEventListener('click', (e) => {
+        if (e.target === uploadModal) {
+          console.log('🔴 Clicked outside upload modal');
+          this.closeModal('uploadModal');
+        }
+      });
+      console.log('✅ Upload modal click outside listener added');
+    }
+  }
+
+  setupValidation() {
+    const signupUsername = document.getElementById('signupUsername');
+    const signupEmail = document.getElementById('signupEmail');
+    const signupPassword = document.getElementById('signupPassword');
+    const loginEmail = document.getElementById('loginEmail');
+
+    // Real-time username validation
+    if (signupUsername) {
+      signupUsername.addEventListener('input', () => {
+        this.validateUsername(signupUsername.value);
+      });
+    }
+
+    // Email validation
+    if (signupEmail) {
+      signupEmail.addEventListener('blur', () => {
+        this.validateEmail(signupEmail.value, 'signupEmailError');
+      });
+    }
+
+    if (loginEmail) {
+      loginEmail.addEventListener('blur', () => {
+        this.validateEmail(loginEmail.value, 'loginEmailError');
+      });
+    }
+
+    // Password validation
+    if (signupPassword) {
+      signupPassword.addEventListener('input', () => {
+        this.validatePassword(signupPassword.value);
+      });
+    }
+
+    // Clear errors on input
+    [signupUsername, signupEmail, signupPassword, loginEmail].forEach(input => {
+      if (input) {
+        input.addEventListener('input', () => {
+          this.clearFieldError(input);
         });
       }
     });
   }
 
+  // === VALIDATION METHODS ===
+
+  validateUsername(username) {
+    const statusEl = document.getElementById('usernameStatus');
+    const errorEl = document.getElementById('signupUsernameError');
+    const inputEl = document.getElementById('signupUsername');
+
+    if (!statusEl || !errorEl || !inputEl) return;
+
+    // Clear previous timeout
+    if (this.usernameCheckTimeout) {
+      clearTimeout(this.usernameCheckTimeout);
+    }
+
+    // Hide status and errors
+    statusEl.className = 'validation-status';
+    this.hideFieldError('signupUsernameError');
+    inputEl.classList.remove('error', 'checking');
+
+    // Basic validation
+    if (username.length === 0) return;
+
+    if (username.length < 3) {
+      this.showFieldError('signupUsernameError', 'Username must be at least 3 characters');
+      inputEl.classList.add('error');
+      return;
+    }
+
+    if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+      this.showFieldError('signupUsernameError', 'Username can only contain letters, numbers, and underscores');
+      inputEl.classList.add('error');
+      return;
+    }
+
+    // Show checking status
+    inputEl.classList.add('checking');
+    statusEl.textContent = 'Checking availability...';
+    statusEl.className = 'validation-status checking';
+
+    // Debounced availability check
+    this.usernameCheckTimeout = setTimeout(async () => {
+      try {
+        const { data: existingUser } = await supabase
+          .from('user_profiles')
+          .select('username')
+          .eq('username', username)
+          .single();
+
+        inputEl.classList.remove('checking');
+
+        if (existingUser) {
+          statusEl.textContent = 'Username is taken';
+          statusEl.className = 'validation-status taken';
+          inputEl.classList.add('error');
+        } else {
+          statusEl.textContent = 'Username is available';
+          statusEl.className = 'validation-status available';
+        }
+      } catch (error) {
+        inputEl.classList.remove('checking');
+        statusEl.className = 'validation-status';
+        console.error('Username check error:', error);
+      }
+    }, 500);
+  }
+
+  validateEmail(email, errorElementId) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    
+    if (email && !emailRegex.test(email)) {
+      this.showFieldError(errorElementId, 'Please enter a valid email address');
+      return false;
+    }
+    
+    this.hideFieldError(errorElementId);
+    return true;
+  }
+
+  validatePassword(password) {
+    if (password.length === 0) {
+      this.hideFieldError('signupPasswordError');
+      return;
+    }
+
+    if (password.length < 6) {
+      this.showFieldError('signupPasswordError', 'Password must be at least 6 characters');
+      return false;
+    }
+
+    this.hideFieldError('signupPasswordError');
+    return true;
+  }
+
+  // === ERROR MESSAGE METHODS ===
+
+  showError(elementId, message) {
+    const errorEl = document.getElementById(elementId);
+    if (errorEl) {
+      errorEl.textContent = message;
+      errorEl.classList.add('show');
+    }
+  }
+
+  hideError(elementId) {
+    const errorEl = document.getElementById(elementId);
+    if (errorEl) {
+      errorEl.classList.remove('show');
+    }
+  }
+
+  showSuccess(elementId, message) {
+    const successEl = document.getElementById(elementId);
+    if (successEl) {
+      successEl.textContent = message;
+      successEl.classList.add('show');
+    }
+  }
+
+  hideSuccess(elementId) {
+    const successEl = document.getElementById(elementId);
+    if (successEl) {
+      successEl.classList.remove('show');
+    }
+  }
+
+  showFieldError(elementId, message) {
+    const errorEl = document.getElementById(elementId);
+    if (errorEl) {
+      errorEl.textContent = message;
+      errorEl.classList.add('show');
+    }
+  }
+
+  hideFieldError(elementId) {
+    const errorEl = document.getElementById(elementId);
+    if (errorEl) {
+      errorEl.classList.remove('show');
+    }
+  }
+
+  clearFieldError(inputEl) {
+    if (inputEl) {
+      inputEl.classList.remove('error');
+    }
+  }
+
+  clearAllErrors() {
+    // Clear main error messages
+    this.hideError('loginError');
+    this.hideError('signupError');
+    this.hideSuccess('signupSuccess');
+
+    // Clear field errors
+    ['loginEmailError', 'loginPasswordError', 'signupEmailError', 'signupUsernameError', 'signupPasswordError'].forEach(id => {
+      this.hideFieldError(id);
+    });
+
+    // Clear error states from inputs
+    document.querySelectorAll('.form-group input').forEach(input => {
+      input.classList.remove('error', 'checking');
+    });
+
+    // Clear username status
+    const usernameStatus = document.getElementById('usernameStatus');
+    if (usernameStatus) {
+      usernameStatus.className = 'validation-status';
+    }
+  }
+
   // === AUTH HANDLERS ===
 
   async handleLogin() {
-    const email = document.getElementById('loginEmail')?.value;
-    const password = document.getElementById('loginPassword')?.value;
+    const emailEl = document.getElementById('loginEmail');
+    const passwordEl = document.getElementById('loginPassword');
     const loginButton = document.getElementById('loginButton');
 
+    if (!emailEl || !passwordEl || !loginButton) return;
+
+    const email = emailEl.value;
+    const password = passwordEl.value;
+
+    // Clear previous errors
+    this.hideError('loginError');
+
+    // Validate
     if (!email || !password) {
       this.showError('loginError', 'Please fill in all fields');
       return;
     }
 
-    // Set loading state
-    if (loginButton) {
-      loginButton.disabled = true;
-      loginButton.textContent = 'signing in...';
+    if (!this.validateEmail(email, 'loginEmailError')) {
+      return;
     }
+
+    // Set loading state
+    loginButton.classList.add('loading');
+    loginButton.disabled = true;
+    loginButton.textContent = 'logging in...';
 
     try {
       const { data, error } = await supabaseHelpers.signIn(email, password);
 
       if (error) {
-        this.showError('loginError', error.message);
+        this.showError('loginError', this.getAuthErrorMessage(error.message));
         return;
       }
 
-      // Success - auth listener will handle the rest
-      document.getElementById('loginForm')?.reset();
+      // Success is handled by onAuthStateChange
+      const loginForm = document.getElementById('loginForm');
+      if (loginForm) {
+        loginForm.reset();
+      }
 
     } catch (error) {
       console.error('Login error:', error);
       this.showError('loginError', 'Login failed. Please try again.');
     } finally {
-      if (loginButton) {
-        loginButton.disabled = false;
-        loginButton.textContent = 'sign in';
-      }
+      loginButton.classList.remove('loading');
+      loginButton.disabled = false;
+      loginButton.textContent = 'login';
     }
   }
 
   async handleSignup() {
-    const email = document.getElementById('signupEmail')?.value;
-    const username = document.getElementById('signupUsername')?.value;
-    const password = document.getElementById('signupPassword')?.value;
+    const emailEl = document.getElementById('signupEmail');
+    const usernameEl = document.getElementById('signupUsername');
+    const passwordEl = document.getElementById('signupPassword');
     const signupButton = document.getElementById('signupButton');
+
+    if (!emailEl || !usernameEl || !passwordEl || !signupButton) return;
+
+    const email = emailEl.value;
+    const username = usernameEl.value;
+    const password = passwordEl.value;
+
+    // Clear previous messages
+    this.hideError('signupError');
+    this.hideSuccess('signupSuccess');
+
+    // Validate all fields
+    let hasErrors = false;
 
     if (!email || !username || !password) {
       this.showError('signupError', 'Please fill in all fields');
       return;
     }
 
+    if (!this.validateEmail(email, 'signupEmailError')) hasErrors = true;
+    if (!this.validatePassword(password)) hasErrors = true;
+
+    // Check username
     if (username.length < 3) {
-      this.showError('signupError', 'Username must be at least 3 characters');
-      return;
+      this.showFieldError('signupUsernameError', 'Username must be at least 3 characters');
+      hasErrors = true;
     }
 
-    if (password.length < 6) {
-      this.showError('signupError', 'Password must be at least 6 characters');
-      return;
+    if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+      this.showFieldError('signupUsernameError', 'Username can only contain letters, numbers, and underscores');
+      hasErrors = true;
     }
+
+    if (hasErrors) return;
 
     // Set loading state
-    if (signupButton) {
-      signupButton.disabled = true;
-      signupButton.textContent = 'creating account...';
-    }
+    signupButton.classList.add('loading');
+    signupButton.disabled = true;
+    signupButton.textContent = 'creating account...';
 
     try {
+      // Check username availability one more time
+      const { data: existingUser } = await supabase
+        .from('user_profiles')
+        .select('username')
+        .eq('username', username)
+        .single();
+
+      if (existingUser) {
+        this.showError('signupError', 'Username is already taken. Please choose another one.');
+        return;
+      }
+
+      // Create account
       const { data, error } = await supabaseHelpers.signUp(email, password, username);
 
       if (error) {
-        this.showError('signupError', error.message);
+        this.showError('signupError', this.getAuthErrorMessage(error.message));
         return;
       }
 
       // Success
       this.showSuccess('signupSuccess', 'Account created! Please check your email to verify your account.');
-      document.getElementById('signupForm')?.reset();
+      const signupForm = document.getElementById('signupForm');
+      if (signupForm) {
+        signupForm.reset();
+      }
+      this.clearAllErrors();
 
       // Switch to login after delay
       setTimeout(() => {
@@ -209,23 +516,43 @@ class AuthManager {
       console.error('Signup error:', error);
       this.showError('signupError', 'Signup failed. Please try again.');
     } finally {
-      if (signupButton) {
-        signupButton.disabled = false;
-        signupButton.textContent = 'create account';
-      }
+      signupButton.classList.remove('loading');
+      signupButton.disabled = false;
+      signupButton.textContent = 'sign up';
     }
   }
+
+  getAuthErrorMessage(errorMessage) {
+    // Convert Supabase error messages to user-friendly ones
+    if (errorMessage.includes('Invalid login credentials')) {
+      return 'Invalid email or password. Please try again.';
+    }
+    if (errorMessage.includes('Email not confirmed')) {
+      return 'Please check your email and click the verification link before logging in.';
+    }
+    if (errorMessage.includes('User already registered')) {
+      return 'An account with this email already exists. Try logging in instead.';
+    }
+    return errorMessage;
+  }
+
+  // === USER STATE HANDLERS ===
 
   async handleUserSignedIn(user) {
     this.currentUser = user;
 
     try {
       // Get user profile
-      const { data: profile } = await window.supabase
+      const { data: profile, error } = await supabase
         .from('user_profiles')
         .select('*')
         .eq('id', user.id)
         .single();
+
+      if (error) {
+        console.error('Error fetching user profile:', error);
+        return;
+      }
 
       this.currentUserProfile = profile;
 
@@ -233,20 +560,22 @@ class AuthManager {
       const loggedInUsername = document.getElementById('loggedInUsername');
       const userAvatar = document.getElementById('userAvatar');
 
-      if (loggedInUsername && profile) {
+      if (loggedInUsername) {
         loggedInUsername.textContent = profile.username;
       }
-      if (userAvatar && profile) {
+      if (userAvatar) {
         userAvatar.textContent = profile.username[0]?.toUpperCase() || 'U';
       }
 
       // Update header menu
-      if (this.headerMenuManager && profile) {
+      if (this.headerMenuManager) {
         this.headerMenuManager.onUserLogin(profile.username);
       }
 
       // Close modals
       this.closeAllModals();
+
+      console.log('User signed in:', profile.username);
 
     } catch (error) {
       console.error('Error handling sign in:', error);
@@ -256,7 +585,6 @@ class AuthManager {
   handleUserSignedOut() {
     this.currentUser = null;
     this.currentUserProfile = null;
-    
     const uploadModal = document.getElementById('uploadModal');
     if (uploadModal) {
       uploadModal.classList.add('hidden');
@@ -266,11 +594,14 @@ class AuthManager {
     if (this.headerMenuManager) {
       this.headerMenuManager.onUserLogout();
     }
+    
+    console.log('User signed out');
   }
 
-  // === MODAL CONTROLS ===
+  // === MODAL CONTROLS (FIXED) ===
 
   closeModal(modalId) {
+    console.log(`🔴 Closing modal: ${modalId}`);
     const modal = document.getElementById(modalId);
     if (modal) {
       modal.classList.add('hidden');
@@ -278,18 +609,34 @@ class AuthManager {
       
       // Reset forms
       if (modalId === 'loginModal') {
-        document.getElementById('loginForm')?.reset();
+        const loginForm = document.getElementById('loginForm');
+        if (loginForm) {
+          loginForm.reset();
+        }
       }
       if (modalId === 'signupModal') {
-        document.getElementById('signupForm')?.reset();
+        const signupForm = document.getElementById('signupForm');
+        if (signupForm) {
+          signupForm.reset();
+        }
       }
+      console.log(`✅ Modal ${modalId} closed successfully`);
+    } else {
+      console.error(`❌ Modal ${modalId} not found`);
     }
   }
 
   closeAllModals() {
+    console.log('🔴 Closing all modals');
     this.closeModal('loginModal');
     this.closeModal('signupModal');
     this.closeModal('uploadModal');
+    
+    // Also close upload confirmation modal
+    const confirmModal = document.getElementById('uploadConfirmModal');
+    if (confirmModal) {
+      confirmModal.classList.add('hidden');
+    }
   }
 
   switchToSignup() {
@@ -297,6 +644,10 @@ class AuthManager {
     const signupModal = document.getElementById('signupModal');
     if (signupModal) {
       signupModal.classList.remove('hidden');
+      const signupEmail = document.getElementById('signupEmail');
+      if (signupEmail) {
+        signupEmail.focus();
+      }
     }
   }
 
@@ -305,6 +656,10 @@ class AuthManager {
     const loginModal = document.getElementById('loginModal');
     if (loginModal) {
       loginModal.classList.remove('hidden');
+      const loginEmail = document.getElementById('loginEmail');
+      if (loginEmail) {
+        loginEmail.focus();
+      }
     }
   }
 
@@ -316,9 +671,9 @@ class AuthManager {
       if (uploadModal) {
         uploadModal.classList.remove('hidden');
         // Load photos after modal opens
-        setTimeout(() => {
+        setTimeout(async () => {
           if (window.uploadManager && window.uploadManager.loadUserPhotos) {
-            window.uploadManager.loadUserPhotos();
+            await window.uploadManager.loadUserPhotos();
           }
         }, 100);
       }
@@ -326,6 +681,10 @@ class AuthManager {
       const loginModal = document.getElementById('loginModal');
       if (loginModal) {
         loginModal.classList.remove('hidden');
+        const loginEmail = document.getElementById('loginEmail');
+        if (loginEmail) {
+          loginEmail.focus();
+        }
       }
     }
   }
@@ -340,41 +699,17 @@ class AuthManager {
 
   async logout() {
     try {
-      await supabaseHelpers.signOut();
+      const { error } = await supabaseHelpers.signOut();
+      if (error) {
+        console.error('Logout error:', error);
+      }
     } catch (error) {
       console.error('Logout error:', error);
     }
   }
-
-  // === UTILITY METHODS ===
-
-  showError(elementId, message) {
-    const errorEl = document.getElementById(elementId);
-    if (errorEl) {
-      errorEl.textContent = message;
-      errorEl.classList.add('show');
-    }
-  }
-
-  showSuccess(elementId, message) {
-    const successEl = document.getElementById(elementId);
-    if (successEl) {
-      successEl.textContent = message;
-      successEl.classList.add('show');
-    }
-  }
-
-  clearAllErrors() {
-    ['loginError', 'signupError', 'signupSuccess'].forEach(id => {
-      const el = document.getElementById(id);
-      if (el) {
-        el.classList.remove('show');
-      }
-    });
-  }
 }
 
-// Simple Header Menu Manager - keep the UI
+// Header Menu Manager
 class HeaderMenuManager {
   constructor() {
     this.headerMenu = null;
@@ -383,56 +718,91 @@ class HeaderMenuManager {
     this.submenu = null;
     this.logoutMenuItem = null;
     this.isLoggedIn = false;
+    this.currentViewingUser = null;
     this.init();
   }
 
   init() {
+    // Get DOM elements
     this.headerMenu = document.getElementById('headerMenu');
     this.primaryLabel = document.getElementById('primaryLabel');
     this.hoverLabel = document.getElementById('hoverLabel');
     this.submenu = document.getElementById('submenu');
     this.logoutMenuItem = document.getElementById('logoutMenuItem');
 
+    // Set up event listeners
     this.setupEventListeners();
+    
+    // Set initial state (will be updated by router)
     this.updateMenuState(false, null);
   }
 
   setupEventListeners() {
+    // Main menu click
     if (this.headerMenu) {
       this.headerMenu.addEventListener('click', () => {
-        if (window.authManager) {
-          window.authManager.showLoginModal();
-        }
+        this.handleMenuClick();
       });
     }
 
+    // Logout menu item click
     if (this.logoutMenuItem) {
       this.logoutMenuItem.addEventListener('click', (e) => {
-        e.stopPropagation();
-        if (window.authManager) {
-          window.authManager.logout();
+        e.stopPropagation(); // Prevent menu click from firing
+        this.handleLogout();
+      });
+    }
+
+    // Keyboard navigation
+    if (this.headerMenu) {
+      this.headerMenu.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          this.handleMenuClick();
         }
       });
     }
   }
 
+  handleMenuClick() {
+    if (window.authManager) {
+      window.authManager.showLoginModal();
+    }
+  }
+
+  async handleLogout() {
+    try {
+      if (window.authManager) {
+        await window.authManager.logout();
+      }
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+  }
+
+  // Update menu state based on authentication and current user
   updateMenuState(isLoggedIn, loggedInUsername) {
     this.isLoggedIn = isLoggedIn;
     
-    // Show current viewing user
+    // Get current viewing user from router
     const currentPath = window.location.pathname;
-    const currentViewingUser = currentPath.startsWith('/u/') ? currentPath.split('/u/')[1] : 'anonymous';
+    if (currentPath.startsWith('/u/')) {
+      this.currentViewingUser = currentPath.split('/u/')[1];
+    } else {
+      this.currentViewingUser = 'anonymous'; // or some default
+    }
 
+    // Always show whose gallery we're viewing
     if (this.primaryLabel) {
-      if (currentViewingUser && currentViewingUser !== 'anonymous') {
-        this.primaryLabel.textContent = `damnpictures / ${currentViewingUser}`;
+      if (this.currentViewingUser && this.currentViewingUser !== 'anonymous') {
+        this.primaryLabel.textContent = `damnpictures / ${this.currentViewingUser}`;
       } else {
         this.primaryLabel.textContent = 'damnpictures';
       }
     }
     
     if (isLoggedIn && loggedInUsername) {
-      // Logged in state
+      // Logged in state - can manage pictures
       if (this.headerMenu) {
         this.headerMenu.className = 'header-menu logged-in';
       }
@@ -443,7 +813,7 @@ class HeaderMenuManager {
         this.submenu.style.display = '';
       }
     } else {
-      // Logged out state
+      // Logged out state - should log in
       if (this.headerMenu) {
         this.headerMenu.className = 'header-menu logged-out';
       }
@@ -456,26 +826,38 @@ class HeaderMenuManager {
     }
   }
 
+  // Method to be called when user logs in
   onUserLogin(username) {
     this.updateMenuState(true, username);
   }
 
+  // Method to be called when user logs out
   onUserLogout() {
     this.updateMenuState(false, null);
   }
 
+  // Method to be called when viewing user changes (from router)
   onViewingUserChange(username) {
+    this.currentViewingUser = username;
     this.updateMenuState(this.isLoggedIn, this.isLoggedIn ? window.authManager?.getCurrentUserProfile()?.username : null);
   }
 }
 
-// Initialize
+// Initialize auth manager
 document.addEventListener('DOMContentLoaded', () => {
+  console.log('🚀 Initializing AuthManager...');
   window.authManager = new AuthManager();
+
+  // Make functions available globally for compatibility
   window.getCurrentUserProfile = () => window.authManager.getCurrentUserProfile();
   window.isLoggedIn = () => window.authManager.isLoggedIn();
+  
+  // Make header menu manager available globally
   window.headerMenuManager = window.authManager.headerMenuManager;
+  
+  console.log('✅ AuthManager initialized');
 });
 
+// Export for other modules
 window.AuthManager = AuthManager;
 window.HeaderMenuManager = HeaderMenuManager;

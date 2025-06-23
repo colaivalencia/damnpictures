@@ -2,28 +2,20 @@
 const SUPABASE_URL = 'https://yxsgedkyoosbauhydtlp.supabase.co'
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl4c2dlZGt5b29zYmF1aHlkdGxwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAxOTIzMTQsImV4cCI6MjA2NTc2ODMxNH0.CBKJa4Q1K1goiQtc8huQcXMLF6OEwFJ3RLlNSixuHAA'
 
-// Wait for Supabase library before initializing
-let supabase = null
+// Initialize Supabase client
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
 
-function initSupabase() {
-  if (window.supabase) {
-    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-    window.supabase = supabase
-  } else {
-    setTimeout(initSupabase, 100)
-  }
-}
-
-initSupabase()
-
-// Netlify Functions helpers for Google Drive (unchanged)
+// Netlify Functions helpers for Google Drive
 const netlifyDriveHelpers = {
+  // Upload file to Google Drive via Netlify Function
   async uploadToDrive(file, username) {
     try {
       console.log(`Uploading ${file.name} to Google Drive via Netlify Function`);
 
+      // Convert file to base64
       const base64Data = await this.fileToBase64(file);
 
+      // Call Netlify Function
       const response = await fetch('/.netlify/functions/upload-to-drive', {
         method: 'POST',
         headers: {
@@ -60,6 +52,7 @@ const netlifyDriveHelpers = {
     }
   },
 
+  // Delete file from Google Drive via Netlify Function
   async deleteFromDrive(fileId) {
     try {
       console.log(`Deleting file ${fileId} from Google Drive`);
@@ -84,11 +77,13 @@ const netlifyDriveHelpers = {
     }
   },
 
+  // Convert file to base64
   fileToBase64(file) {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.readAsDataURL(file);
       reader.onload = () => {
+        // Remove the data:image/jpeg;base64, prefix
         const base64 = reader.result.split(',')[1];
         resolve(base64);
       };
@@ -97,107 +92,56 @@ const netlifyDriveHelpers = {
   }
 };
 
-// Updated Supabase helpers with simple email confirmation
+// Updated Supabase helpers with Netlify Functions integration
 const supabaseHelpers = {
-  // Simple signup - let Supabase handle everything
+  // Auth helpers (unchanged)
   async signUp(email, password, username) {
-    try {
-      console.log('🔐 Starting signup process for:', email);
-      
-      // Check username availability first
-      const { data: existingUser } = await supabase
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+    })
+    
+    if (error) return { error }
+    
+    if (data.user) {
+      const { error: profileError } = await supabase
         .from('user_profiles')
-        .select('username')
-        .eq('username', username)
-        .single();
-
-      if (existingUser) {
-        return { error: { message: 'Username is already taken' } };
-      }
-
-      // Sign up with Supabase - redirect back to main app
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            username: username,
-            display_name: username
-          },
-          emailRedirectTo: `${window.location.origin}` // Just redirect to main app
-        }
-      });
+        .insert({
+          id: data.user.id,
+          username,
+          display_name: username
+        })
       
-      if (error) {
-        console.error('❌ Signup error:', error);
-        return { error };
-      }
-
-      console.log('✅ Signup successful, email confirmation needed');
-      
-      return { 
-        data, 
-        needsConfirmation: !data.user?.email_confirmed_at 
-      };
-      
-    } catch (error) {
-      console.error('❌ Signup exception:', error);
-      return { error: { message: error.message } };
+      if (profileError) return { error: profileError }
     }
+    
+    return { data }
   },
 
   async signIn(email, password) {
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password
-      });
-
-      if (error) {
-        if (error.message.includes('Email not confirmed')) {
-          return { 
-            error: { 
-              message: 'Please check your email and click the confirmation link first.',
-              code: 'email_not_confirmed'
-            } 
-          };
-        }
-        return { error };
-      }
-
-      return { data };
-    } catch (error) {
-      return { error: { message: error.message } };
-    }
-  },
-
-  async resendConfirmation(email) {
-    try {
-      const { error } = await supabase.auth.resend({
-        type: 'signup',
-        email: email
-      });
-      return { error };
-    } catch (error) {
-      return { error: { message: error.message } };
-    }
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password
+    })
+    return { data, error }
   },
 
   async signOut() {
-    const { error } = await supabase.auth.signOut();
-    return { error };
+    const { error } = await supabase.auth.signOut()
+    return { error }
   },
 
   async getCurrentUser() {
-    const { data: { user } } = await supabase.auth.getUser();
-    return user;
+    const { data: { user } } = await supabase.auth.getUser()
+    return user
   },
 
-  // Google Drive upload via Netlify Functions (unchanged)
+  // Google Drive upload via Netlify Functions
   async uploadPhoto(file, username) {
     try {
       console.log(`Starting upload: ${file.name} for ${username}`);
       
+      // Upload to Google Drive via Netlify Function
       const driveResult = await netlifyDriveHelpers.uploadToDrive(file, username);
       
       if (driveResult.error) {
@@ -271,12 +215,14 @@ const supabaseHelpers = {
 
   async deletePhoto(photoId, driveFileId) {
     try {
+      // Delete from Google Drive first
       const driveResult = await netlifyDriveHelpers.deleteFromDrive(driveFileId);
       
       if (driveResult.error) {
         console.warn('Failed to delete from Google Drive:', driveResult.error);
       }
 
+      // Delete from database
       const { error: dbError } = await supabase
         .from('photos')
         .delete()
@@ -290,90 +236,7 @@ const supabaseHelpers = {
   }
 }
 
-// Enhanced auth state listener to handle confirmations
-supabase.auth.onAuthStateChange(async (event, session) => {
-  console.log('🔄 Auth state changed:', event);
-  
-  if (event === 'SIGNED_IN' && session) {
-    const user = session.user;
-    
-    // Check if this is from email confirmation
-    const isFromEmailConfirmation = window.location.search.includes('access_token') || 
-                                  window.location.hash.includes('access_token');
-    
-    if (isFromEmailConfirmation) {
-      console.log('✅ User signed in via email confirmation');
-      
-      // Clean the URL
-      const cleanUrl = window.location.pathname;
-      window.history.replaceState({}, '', cleanUrl);
-      
-      // Create user profile if needed
-      await createUserProfileIfNeeded(user);
-      
-      // Show welcome message after a brief delay
-      setTimeout(() => {
-        if (window.authManager) {
-          window.authManager.showWelcomeMessage(user);
-        }
-      }, 500);
-    }
-    
-    // Handle normal sign in
-    if (window.authManager) {
-      await window.authManager.handleUserSignedIn(user);
-    }
-    
-  } else if (event === 'SIGNED_OUT') {
-    if (window.authManager) {
-      window.authManager.handleUserSignedOut();
-    }
-  }
-});
-
-// Create user profile if it doesn't exist
-async function createUserProfileIfNeeded(user) {
-  try {
-    // Check if profile exists
-    const { data: existingProfile } = await supabase
-      .from('user_profiles')
-      .select('*')
-      .eq('id', user.id)
-      .single();
-
-    if (existingProfile) {
-      console.log('✅ User profile already exists');
-      return existingProfile;
-    }
-
-    // Create new profile
-    const username = user.user_metadata?.username || user.email.split('@')[0];
-    const { data: newProfile, error } = await supabase
-      .from('user_profiles')
-      .insert({
-        id: user.id,
-        username: username,
-        display_name: username,
-        email: user.email
-      })
-      .select()
-      .single();
-
-    if (error) {
-      console.error('❌ Error creating profile:', error);
-      return null;
-    }
-
-    console.log('✅ Created user profile:', newProfile);
-    return newProfile;
-
-  } catch (error) {
-    console.error('❌ Profile creation error:', error);
-    return null;
-  }
-}
-
 // Make available globally
 window.supabaseHelpers = supabaseHelpers
 
-console.log('🚀 Simple email confirmation loaded');
+console.log('Google Drive integration via Netlify Functions loaded');
