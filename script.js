@@ -13,8 +13,18 @@ class AuthManager {
     this.setupValidation();
     this.initializeHeaderMenu();
     
-    // Auth state listener
-    supabase.auth.onAuthStateChange((event, session) => {
+    // Wait for supabase to be ready before setting up auth listener
+    this.setupAuthListener();
+  }
+
+  async setupAuthListener() {
+    // Wait for supabase to be available
+    while (!window.supabase) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    
+    // Now set up the auth state listener
+    window.supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_IN' && session) {
         this.handleUserSignedIn(session.user);
       } else if (event === 'SIGNED_OUT') {
@@ -187,7 +197,7 @@ class AuthManager {
 
   // === VALIDATION METHODS ===
 
-  validateUsername(username) {
+  async validateUsername(username) {
     const statusEl = document.getElementById('usernameStatus');
     const errorEl = document.getElementById('signupUsernameError');
     const inputEl = document.getElementById('signupUsername');
@@ -227,7 +237,12 @@ class AuthManager {
     // Debounced availability check
     this.usernameCheckTimeout = setTimeout(async () => {
       try {
-        const { data: existingUser } = await supabase
+        // Wait for supabase to be ready
+        while (!window.supabase) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+
+        const { data: existingUser } = await window.supabase
           .from('user_profiles')
           .select('username')
           .eq('username', username)
@@ -454,8 +469,13 @@ class AuthManager {
     signupButton.textContent = 'creating account...';
 
     try {
+      // Wait for supabase to be ready
+      while (!window.supabase) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+
       // Check username availability one more time
-      const { data: existingUser } = await supabase
+      const { data: existingUser } = await window.supabase
         .from('user_profiles')
         .select('username')
         .eq('username', username)
@@ -517,8 +537,13 @@ class AuthManager {
     this.currentUser = user;
 
     try {
+      // Wait for supabase to be ready
+      while (!window.supabase) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+
       // Get user profile
-      const { data: profile, error } = await supabase
+      const { data: profile, error } = await window.supabase
         .from('user_profiles')
         .select('*')
         .eq('id', user.id)
