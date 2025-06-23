@@ -1,4 +1,4 @@
-// Enhanced AuthManager with Simple Email Confirmation
+// Simple AuthManager - Back to Basics
 class AuthManager {
   constructor() {
     this.currentUser = null;
@@ -24,7 +24,6 @@ class AuthManager {
   }
 
   initializeHeaderMenu() {
-    // Initialize header menu manager
     this.headerMenuManager = new HeaderMenuManager();
   }
 
@@ -38,7 +37,6 @@ class AuthManager {
       this.attachModalEventListeners();
     }
 
-    // Setup form listeners
     this.setupFormListeners();
     
     // Global escape key listener
@@ -50,51 +48,36 @@ class AuthManager {
   }
 
   attachModalEventListeners() {
-    console.log('🔗 Attaching modal event listeners...');
-    
     // Login modal close button
     const closeModal = document.getElementById('closeModal');
     if (closeModal) {
-      console.log('✅ Found login close button');
       closeModal.addEventListener('click', (e) => {
-        console.log('🔴 Login close button clicked');
         e.preventDefault();
         e.stopPropagation();
         this.closeModal('loginModal');
       });
-    } else {
-      console.error('❌ Login close button not found');
     }
 
     // Signup modal close button
     const closeSignupModal = document.getElementById('closeSignupModal');
     if (closeSignupModal) {
-      console.log('✅ Found signup close button');
       closeSignupModal.addEventListener('click', (e) => {
-        console.log('🔴 Signup close button clicked');
         e.preventDefault();
         e.stopPropagation();
         this.closeModal('signupModal');
       });
-    } else {
-      console.error('❌ Signup close button not found');
     }
 
     // Upload modal close button
     const closeUploadModal = document.getElementById('closeUploadModal');
     if (closeUploadModal) {
-      console.log('✅ Found upload close button');
       closeUploadModal.addEventListener('click', (e) => {
-        console.log('🔴 Upload close button clicked');
         e.preventDefault();
         e.stopPropagation();
         this.closeModal('uploadModal');
       });
-    } else {
-      console.error('❌ Upload close button not found');
     }
 
-    // Click outside to close modals
     this.setupClickOutsideListeners();
   }
 
@@ -128,18 +111,14 @@ class AuthManager {
   }
 
   setupClickOutsideListeners() {
-    console.log('🎯 Setting up click outside listeners...');
-
     // Login modal
     const loginModal = document.getElementById('loginModal');
     if (loginModal) {
       loginModal.addEventListener('click', (e) => {
         if (e.target === loginModal) {
-          console.log('🔴 Clicked outside login modal');
           this.closeModal('loginModal');
         }
       });
-      console.log('✅ Login modal click outside listener added');
     }
 
     // Signup modal
@@ -147,11 +126,9 @@ class AuthManager {
     if (signupModal) {
       signupModal.addEventListener('click', (e) => {
         if (e.target === signupModal) {
-          console.log('🔴 Clicked outside signup modal');
           this.closeModal('signupModal');
         }
       });
-      console.log('✅ Signup modal click outside listener added');
     }
 
     // Upload modal
@@ -159,11 +136,9 @@ class AuthManager {
     if (uploadModal) {
       uploadModal.addEventListener('click', (e) => {
         if (e.target === uploadModal) {
-          console.log('🔴 Clicked outside upload modal');
           this.closeModal('uploadModal');
         }
       });
-      console.log('✅ Upload modal click outside listener added');
     }
   }
 
@@ -377,9 +352,6 @@ class AuthManager {
     if (usernameStatus) {
       usernameStatus.className = 'validation-status';
     }
-
-    // Clear any resend buttons
-    document.querySelectorAll('.resend-confirmation').forEach(btn => btn.remove());
   }
 
   // === AUTH HANDLERS ===
@@ -416,13 +388,7 @@ class AuthManager {
       const { data, error } = await supabaseHelpers.signIn(email, password);
 
       if (error) {
-        // Handle email not confirmed error specially
-        if (error.code === 'email_not_confirmed') {
-          this.showError('loginError', error.message);
-          this.addResendConfirmationToLogin(email);
-        } else {
-          this.showError('loginError', this.getAuthErrorMessage(error.message));
-        }
+        this.showError('loginError', this.getAuthErrorMessage(error.message));
         return;
       }
 
@@ -488,38 +454,38 @@ class AuthManager {
     signupButton.textContent = 'creating account...';
 
     try {
+      // Check username availability one more time
+      const { data: existingUser } = await supabase
+        .from('user_profiles')
+        .select('username')
+        .eq('username', username)
+        .single();
+
+      if (existingUser) {
+        this.showError('signupError', 'Username is already taken. Please choose another one.');
+        return;
+      }
+
       // Create account
-      const { data, error, needsConfirmation } = await supabaseHelpers.signUp(email, password, username);
+      const { data, error } = await supabaseHelpers.signUp(email, password, username);
 
       if (error) {
         this.showError('signupError', this.getAuthErrorMessage(error.message));
         return;
       }
 
-      // Clear form
+      // Success
+      this.showSuccess('signupSuccess', 'Account created! Please check your email to verify your account.');
       const signupForm = document.getElementById('signupForm');
       if (signupForm) {
         signupForm.reset();
       }
       this.clearAllErrors();
 
-      if (needsConfirmation) {
-        // Show confirmation message with resend option
-        this.showSuccess('signupSuccess', 
-          `✅ Account created! Please check your email (${email}) and click the confirmation link to complete your registration.`
-        );
-        
-        // Add resend option
-        this.addResendConfirmationOption(email);
-        
-        console.log('✅ Signup successful, awaiting email confirmation');
-      } else {
-        // Email was already confirmed (rare case)
-        this.showSuccess('signupSuccess', 'Account created and verified! You can now sign in.');
-        setTimeout(() => {
-          this.switchToLogin();
-        }, 2000);
-      }
+      // Switch to login after delay
+      setTimeout(() => {
+        this.switchToLogin();
+      }, 3000);
 
     } catch (error) {
       console.error('Signup error:', error);
@@ -531,207 +497,16 @@ class AuthManager {
     }
   }
 
-  // Add method to show welcome message after email confirmation
-  showWelcomeMessage(user) {
-    console.log('🎉 Showing welcome message for:', user.email);
-    
-    // Create welcome toast
-    const toast = document.createElement('div');
-    toast.style.cssText = `
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      background: linear-gradient(135deg, #ff6b35, #e55a2b);
-      color: white;
-      padding: 20px 24px;
-      border-radius: 12px;
-      box-shadow: 0 8px 32px rgba(255, 107, 53, 0.3);
-      z-index: 10000;
-      max-width: 400px;
-      font-family: 'Helvetica Neue', sans-serif;
-      animation: slideInRight 0.4s ease-out;
-    `;
-    
-    toast.innerHTML = `
-      <div style="display: flex; align-items: flex-start; gap: 12px;">
-        <div style="font-size: 24px;">🎉</div>
-        <div>
-          <div style="font-weight: 700; font-size: 16px; margin-bottom: 4px;">
-            Welcome to damnpictures!
-          </div>
-          <div style="font-size: 14px; opacity: 0.9; line-height: 1.4;">
-            Your email has been confirmed. Start sharing your pictures!
-          </div>
-        </div>
-        <button onclick="this.parentElement.parentElement.remove()" 
-                style="background: none; border: none; color: white; font-size: 18px; cursor: pointer; opacity: 0.7; margin-left: auto;">
-          ×
-        </button>
-      </div>
-    `;
-
-    // Add animation styles if not already added
-    if (!document.getElementById('toast-animations')) {
-      const style = document.createElement('style');
-      style.id = 'toast-animations';
-      style.textContent = `
-        @keyframes slideInRight {
-          from {
-            transform: translateX(100%);
-            opacity: 0;
-          }
-          to {
-            transform: translateX(0);
-            opacity: 1;
-          }
-        }
-        
-        @keyframes slideOutRight {
-          from {
-            transform: translateX(0);
-            opacity: 1;
-          }
-          to {
-            transform: translateX(100%);
-            opacity: 0;
-          }
-        }
-      `;
-      document.head.appendChild(style);
-    }
-
-    document.body.appendChild(toast);
-
-    // Auto remove after 5 seconds
-    setTimeout(() => {
-      toast.style.animation = 'slideOutRight 0.4s ease-out';
-      setTimeout(() => {
-        if (toast.parentElement) {
-          toast.remove();
-        }
-      }, 400);
-    }, 5000);
-
-    // Also open the upload modal after a short delay
-    setTimeout(() => {
-      const uploadModal = document.getElementById('uploadModal');
-      if (uploadModal) {
-        uploadModal.classList.remove('hidden');
-        // Load photos
-        if (window.uploadManager) {
-          window.uploadManager.loadUserPhotos();
-        }
-      }
-    }, 1500);
-  }
-
-  // Add resend confirmation option
-  addResendConfirmationOption(email) {
-    const successEl = document.getElementById('signupSuccess');
-    if (!successEl || successEl.querySelector('.resend-confirmation')) return;
-
-    const resendButton = document.createElement('button');
-    resendButton.className = 'resend-confirmation';
-    resendButton.style.cssText = `
-      background: transparent;
-      color: #ff6b35;
-      border: 1px solid #ff6b35;
-      padding: 8px 16px;
-      border-radius: 4px;
-      font-size: 12px;
-      cursor: pointer;
-      margin-top: 12px;
-      transition: all 0.2s ease;
-      display: block;
-    `;
-    resendButton.textContent = 'Resend confirmation email';
-    
-    resendButton.addEventListener('click', async () => {
-      resendButton.disabled = true;
-      resendButton.textContent = 'Sending...';
-      
-      const { error } = await supabaseHelpers.resendConfirmation(email);
-      
-      if (error) {
-        resendButton.textContent = 'Failed to resend';
-        setTimeout(() => {
-          resendButton.disabled = false;
-          resendButton.textContent = 'Resend confirmation email';
-        }, 3000);
-      } else {
-        resendButton.textContent = 'Email sent!';
-        setTimeout(() => {
-          resendButton.disabled = false;
-          resendButton.textContent = 'Resend confirmation email';
-        }, 5000);
-      }
-    });
-    
-    successEl.appendChild(resendButton);
-  }
-
-  // Add resend confirmation option to login modal
-  addResendConfirmationToLogin(email) {
-    const errorEl = document.getElementById('loginError');
-    if (!errorEl || errorEl.querySelector('.resend-confirmation')) return;
-
-    const resendButton = document.createElement('button');
-    resendButton.className = 'resend-confirmation';
-    resendButton.style.cssText = `
-      background: transparent;
-      color: #ff6b35;
-      border: 1px solid #ff6b35;
-      padding: 8px 16px;
-      border-radius: 4px;
-      font-size: 12px;
-      cursor: pointer;
-      margin-top: 12px;
-      transition: all 0.2s ease;
-      display: block;
-      width: fit-content;
-    `;
-    resendButton.textContent = 'Resend confirmation email';
-    
-    resendButton.addEventListener('click', async () => {
-      resendButton.disabled = true;
-      resendButton.textContent = 'Sending...';
-      
-      const { error } = await supabaseHelpers.resendConfirmation(email);
-      
-      if (error) {
-        resendButton.textContent = 'Failed to resend';
-        setTimeout(() => {
-          resendButton.disabled = false;
-          resendButton.textContent = 'Resend confirmation email';
-        }, 3000);
-      } else {
-        resendButton.textContent = 'Confirmation email sent!';
-        setTimeout(() => {
-          resendButton.disabled = false;
-          resendButton.textContent = 'Resend confirmation email';
-        }, 5000);
-      }
-    });
-    
-    errorEl.appendChild(resendButton);
-  }
-
   getAuthErrorMessage(errorMessage) {
     // Convert Supabase error messages to user-friendly ones
     if (errorMessage.includes('Invalid login credentials')) {
       return 'Invalid email or password. Please try again.';
     }
     if (errorMessage.includes('Email not confirmed')) {
-      return 'Please check your email and click the confirmation link first.';
+      return 'Please check your email and click the verification link before logging in.';
     }
     if (errorMessage.includes('User already registered')) {
-      return 'An account with this email already exists. Try signing in instead.';
-    }
-    if (errorMessage.includes('Username is already taken')) {
-      return 'This username is already taken. Please choose another one.';
-    }
-    if (errorMessage.includes('signup_disabled')) {
-      return 'Account creation is temporarily disabled. Please try again later.';
+      return 'An account with this email already exists. Try logging in instead.';
     }
     return errorMessage;
   }
@@ -772,9 +547,8 @@ class AuthManager {
         this.headerMenuManager.onUserLogin(profile.username);
       }
 
-      // Close auth modals
-      this.closeModal('loginModal');
-      this.closeModal('signupModal');
+      // Close modals
+      this.closeAllModals();
 
       console.log('User signed in:', profile.username);
 
@@ -802,7 +576,6 @@ class AuthManager {
   // === MODAL CONTROLS ===
 
   closeModal(modalId) {
-    console.log(`🔴 Closing modal: ${modalId}`);
     const modal = document.getElementById(modalId);
     if (modal) {
       modal.classList.add('hidden');
@@ -821,14 +594,10 @@ class AuthManager {
           signupForm.reset();
         }
       }
-      console.log(`✅ Modal ${modalId} closed successfully`);
-    } else {
-      console.error(`❌ Modal ${modalId} not found`);
     }
   }
 
   closeAllModals() {
-    console.log('🔴 Closing all modals');
     this.closeModal('loginModal');
     this.closeModal('signupModal');
     this.closeModal('uploadModal');
@@ -910,7 +679,7 @@ class AuthManager {
   }
 }
 
-// Header Menu Manager
+// Header Menu Manager - Simple Version
 class HeaderMenuManager {
   constructor() {
     this.headerMenu = null;
@@ -1044,73 +813,8 @@ class HeaderMenuManager {
   }
 }
 
-// Check for email confirmation from URL on page load
+// Initialize auth manager - SIMPLE VERSION
 document.addEventListener('DOMContentLoaded', () => {
-  // Check if user came from email confirmation
-  const urlParams = new URLSearchParams(window.location.search);
-  const fragment = new URLSearchParams(window.location.hash.substring(1));
-  
-  // Check for confirmation tokens in URL
-  const accessToken = urlParams.get('access_token') || fragment.get('access_token');
-  const type = urlParams.get('type') || fragment.get('type');
-  
-  if (accessToken && type === 'signup') {
-    console.log('🔗 Detected email confirmation from URL');
-    
-    // Clean the URL immediately
-    const cleanUrl = window.location.pathname;
-    window.history.replaceState({}, '', cleanUrl);
-    
-    // Wait a moment for auth state to settle, then show welcome
-    setTimeout(() => {
-      if (window.authManager && window.authManager.currentUser) {
-        window.authManager.showWelcomeMessage(window.authManager.currentUser);
-      } else {
-        // Fallback: show a simple success message
-        showSimpleConfirmationMessage();
-      }
-    }, 1000);
-  }
-});
-
-function showSimpleConfirmationMessage() {
-  // Simple confirmation banner
-  const banner = document.createElement('div');
-  banner.style.cssText = `
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    background: linear-gradient(135deg, #2ed573, #26d65c);
-    color: white;
-    padding: 16px;
-    text-align: center;
-    font-weight: 600;
-    z-index: 10000;
-    box-shadow: 0 2px 12px rgba(46, 213, 115, 0.3);
-  `;
-  
-  banner.innerHTML = `
-    ✅ Email confirmed! Welcome to damnpictures
-    <button onclick="this.parentElement.remove()" 
-            style="background: none; border: none; color: white; font-size: 18px; cursor: pointer; margin-left: 16px;">
-      ×
-    </button>
-  `;
-  
-  document.body.appendChild(banner);
-  
-  // Auto remove after 4 seconds
-  setTimeout(() => {
-    if (banner.parentElement) {
-      banner.remove();
-    }
-  }, 4000);
-}
-
-// Initialize auth manager
-document.addEventListener('DOMContentLoaded', () => {
-  console.log('🚀 Initializing AuthManager...');
   window.authManager = new AuthManager();
 
   // Make functions available globally for compatibility
@@ -1119,8 +823,6 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // Make header menu manager available globally
   window.headerMenuManager = window.authManager.headerMenuManager;
-  
-  console.log('✅ AuthManager initialized');
 });
 
 // Export for other modules
