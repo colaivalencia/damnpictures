@@ -1,4 +1,4 @@
-// Updated router.js - Integrated with Header Menu
+// Updated router.js - Minimal fix for blank page issue
 class DamnPicturesRouter {
   constructor() {
     this.currentUser = null
@@ -12,9 +12,9 @@ class DamnPicturesRouter {
       // Check if this was a refresh on a user page
       if (this.wasPageRefreshed() && window.location.pathname.startsWith('/u/')) {
         console.log('Refresh detected on user page, redirecting to random user')
-        this.redirectToRandomUser()
+        this.waitForDependencies(() => this.redirectToRandomUser())
       } else {
-        this.handleRoute()
+        this.waitForDependencies(() => this.handleRoute())
       }
     })
     
@@ -59,29 +59,49 @@ class DamnPicturesRouter {
     }, 1000)
   }
 
+  async waitForDependencies(callback) {
+    // Simple wait for required dependencies
+    const checkReady = () => {
+      if (window.supabaseHelpers && window.supabase) {
+        callback()
+      } else {
+        setTimeout(checkReady, 100)
+      }
+    }
+    checkReady()
+  }
+
   async handleRoute() {
     const path = window.location.pathname
     console.log('Current path:', path)
 
-    // Root domain - redirect to random user
-    if (path === '/' || path === '') {
-      await this.redirectToRandomUser()
-      return
-    }
-
-    // User gallery - /u/username
-    if (path.startsWith('/u/')) {
-      const username = path.split('/u/')[1]
-      if (username) {
-        await this.loadUserGallery(username)
-      } else {
+    try {
+      // Root domain - redirect to random user
+      if (path === '/' || path === '') {
         await this.redirectToRandomUser()
+        return
       }
-      return
-    }
 
-    // Fallback - redirect to random
-    await this.redirectToRandomUser()
+      // User gallery - /u/username  
+      // NOTE: This will load the specific user, NOT redirect to random
+      // Random redirect only happens on refresh (handled in init())
+      if (path.startsWith('/u/')) {
+        const username = path.split('/u/')[1]
+        if (username) {
+          await this.loadUserGallery(username)
+        } else {
+          await this.redirectToRandomUser()
+        }
+        return
+      }
+
+      // Fallback - redirect to random
+      await this.redirectToRandomUser()
+      
+    } catch (error) {
+      console.error('Route handling error:', error)
+      this.showErrorState()
+    }
   }
 
   async redirectToRandomUser() {
@@ -92,7 +112,7 @@ class DamnPicturesRouter {
 
     try {
       // Get users who have public photos
-      const { data: users, error } = await supabaseHelpers.getUsersWithPhotos()
+      const { data: users, error } = await window.supabaseHelpers.getUsersWithPhotos()
       
       if (error || !users || users.length === 0) {
         console.error('No users with photos found:', error)
@@ -116,12 +136,15 @@ class DamnPicturesRouter {
       
       console.log('Redirecting to:', targetUrl)
       
-      // Mark this as intentional navigation before redirecting
+      // Use history.pushState instead of location.href, and mark as intentional
+      window.history.pushState({}, '', targetUrl)
+      
+      // Mark this as intentional navigation
       sessionStorage.setItem('damn_intentional_nav', 'true')
       sessionStorage.setItem('damn_last_path', targetUrl)
       
-      // Navigate to new user
-      window.location.href = targetUrl
+      // Load the user gallery
+      await this.loadUserGallery(randomUser.username)
       
     } catch (error) {
       console.error('Error redirecting to random user:', error)
@@ -142,12 +165,12 @@ class DamnPicturesRouter {
       document.title = `${username} - damnpictures`
       
       // Update header menu to show current viewing user
-      if (window.headerMenuManager) {
-        window.headerMenuManager.onViewingUserChange(username)
+      if (window.authManager?.headerMenuManager) {
+        window.authManager.headerMenuManager.onViewingUserChange(username)
       }
 
       // Load user's photos
-      const { data: photos, error } = await supabaseHelpers.getUserPhotos(username)
+      const { data: photos, error } = await window.supabaseHelpers.getUserPhotos(username)
       
       if (error) {
         console.error('Error loading photos:', error)
@@ -170,12 +193,11 @@ class DamnPicturesRouter {
     }
   }
 
-  // FIXED: Better Google Drive URL handling
   getOptimizedImageUrl(photo) {
     if (!photo.drive_file_id) {
       // Fallback to Supabase storage
       if (photo.file_path) {
-        const { data } = supabase.storage
+        const { data } = window.supabase.storage
           .from('photos')
           .getPublicUrl(photo.file_path)
         return data.publicUrl
@@ -184,11 +206,9 @@ class DamnPicturesRouter {
     }
 
     // For Google Drive, use the most reliable format
-    // This format works best for public images
     return `https://lh3.googleusercontent.com/d/${photo.drive_file_id}=w2000-h2000-rw`
   }
 
-  // FIXED: Better fallback URL generation
   getBackupImageUrls(photo) {
     if (!photo.drive_file_id) return []
     
