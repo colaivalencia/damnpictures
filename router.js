@@ -105,12 +105,13 @@ class DamnPicturesRouter {
       await this.loadUserGallery(randomUser.username)
       
     } catch (error) {
-      console.error('Error redirecting to random user:', error)
-      this.showErrorState()
-    }
-    
-    this.isRedirecting = false
-  }
+  console.error('Error redirecting to random user:', error)
+  // If redirect fails, just reload the current page
+  window.location.href = window.location.pathname
+} finally {
+  this.isRedirecting = false
+}
+}
 
   async loadUserGallery(username) {
     console.log('Loading gallery for user:', username)
