@@ -1243,14 +1243,28 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Remove the 0.5 multiplier - use full scroll values
   gallery.addEventListener('wheel', (e) => {
     e.preventDefault();
     
+    // Detect traditional mouse wheel vs trackpad
+    const isTraditionalWheel = Math.abs(e.deltaY) > 50 || e.deltaMode === 1;
+    
     if (Math.abs(e.deltaX) < Math.abs(e.deltaY)) {
-      gallery.scrollLeft += e.deltaY; // No 0.5 multiplier
+      // Vertical scroll - convert to horizontal
+      if (isTraditionalWheel) {
+        // Traditional wheel - big jumps with acceleration
+        gallery.scrollLeft += e.deltaY * 3;
+      } else {
+        // Trackpad - smooth scrolling, faster than before
+        gallery.scrollLeft += e.deltaY * 2;
+      }
     } else {
-      gallery.scrollLeft += e.deltaX;
+      // Horizontal scroll
+      if (isTraditionalWheel) {
+        gallery.scrollLeft += e.deltaX * 3;
+      } else {
+        gallery.scrollLeft += e.deltaX * 2;
+      }
     }
   }, { passive: false });
 });
