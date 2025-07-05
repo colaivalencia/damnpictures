@@ -1243,13 +1243,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Only intercept TRADITIONAL mouse wheel - much stricter detection
+  // Simple mouse wheel - no complex detection
   gallery.addEventListener('wheel', (e) => {
-    // Only handle if it's clearly a traditional mouse wheel (deltaMode 1 or very large deltaY)
-    if (e.deltaMode === 1 || Math.abs(e.deltaY) > 120) {
+    // Only if purely vertical scroll (no horizontal component)
+    if (Math.abs(e.deltaX) === 0 && Math.abs(e.deltaY) > 0) {
       e.preventDefault();
       gallery.scrollLeft += e.deltaY * 3;
     }
-    // Let ALL touchpad scrolling work exactly as original - no interference
+    // Everything else passes through untouched
   }, { passive: false });
 });
