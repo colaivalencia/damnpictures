@@ -1243,8 +1243,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Simple direction detection - respond immediately to primary direction
+  // Prevent default on ALL wheel events to stop rubber banding
   gallery.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    
     if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
       // Vertical scroll - convert to horizontal
       gallery.scrollLeft += e.deltaY;
@@ -1252,5 +1254,5 @@ document.addEventListener('DOMContentLoaded', () => {
       // Horizontal scroll - use as is
       gallery.scrollLeft += e.deltaX;
     }
-  });
+  }, { passive: false });
 });
