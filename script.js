@@ -1248,8 +1248,8 @@ document.addEventListener('DOMContentLoaded', () => {
   let animationFrame;
   
   gallery.addEventListener('wheel', (e) => {
-    // Only if purely vertical scroll
-    if (Math.abs(e.deltaX) === 0 && Math.abs(e.deltaY) > 0) {
+    // Detect traditional mouse wheel (big steps, deltaMode 1, or large deltaY values)
+    if (e.deltaMode === 1 || Math.abs(e.deltaY) > 100) {
       e.preventDefault();
       
       // Add to momentum instead of direct scroll
