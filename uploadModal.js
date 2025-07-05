@@ -939,6 +939,35 @@ class ImageUploadManager {
         const checkbox = document.querySelector(`[data-photo-id="${photoId}"]`);
         const driveFileId = checkbox?.dataset.driveId;
 
+        // First delete from Google Drive
+        if (driveFileId) {
+          console.log(`🗑️ Deleting from Google Drive: ${driveFileId}`);
+          
+          try {
+            const driveResponse = await fetch('/api/delete-from-drive', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ fileId: driveFileId })
+            });
+
+            if (!driveResponse.ok) {
+              console.error(`❌ Drive delete failed for ${driveFileId}:`, driveResponse.status);
+              const errorText = await driveResponse.text();
+              console.error('❌ Drive delete error:', errorText);
+              // Continue with database deletion even if Drive fails
+            } else {
+              const driveResult = await driveResponse.json();
+              console.log(`✅ Deleted from Google Drive: ${driveFileId}`, driveResult);
+            }
+          } catch (driveError) {
+            console.error(`❌ Exception deleting from Drive ${driveFileId}:`, driveError);
+            // Continue with database deletion even if Drive fails
+          }
+        }
+
+        // Then delete from database
         const { error } = await supabaseHelpers.deletePhoto(photoId, driveFileId);
         
         if (error) {
@@ -1036,10 +1065,36 @@ class ImageUploadManager {
     }
 
     try {
+      // First delete from Google Drive
+      if (driveFileId) {
+        console.log('🗑️ Deleting from Google Drive:', driveFileId);
+        
+        const driveResponse = await fetch('/api/delete-from-drive', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ fileId: driveFileId })
+        });
+
+        if (!driveResponse.ok) {
+          console.error('❌ Drive delete failed:', driveResponse.status);
+          const errorText = await driveResponse.text();
+          console.error('❌ Drive delete error:', errorText);
+          
+          // Continue with database deletion even if Drive fails
+          alert('Warning: Could not delete from Google Drive, but will remove from your library.');
+        } else {
+          const driveResult = await driveResponse.json();
+          console.log('✅ Deleted from Google Drive:', driveResult);
+        }
+      }
+
+      // Then delete from database
       const { error } = await supabaseHelpers.deletePhoto(photoId, driveFileId);
       
       if (error) {
-        alert('Failed to delete photo. Please try again.');
+        alert('Failed to delete photo from database. Please try again.');
         return;
       }
 
