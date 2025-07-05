@@ -1229,7 +1229,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // Export for use in other modules
 window.modalStabilityManager = modalStabilityManager;
 
-// Enhanced scrolling - arrow keys + vertical mouse wheel only
+// Enhanced scrolling - arrow keys + smooth mouse wheel
 document.addEventListener('DOMContentLoaded', () => {
   const gallery = document.getElementById('gallery');
   
@@ -1243,13 +1243,32 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Simple mouse wheel - no complex detection
+  // Smooth mouse wheel with momentum like touchpad
+  let momentum = 0;
+  let animationFrame;
+  
   gallery.addEventListener('wheel', (e) => {
-    // Only if purely vertical scroll (no horizontal component)
+    // Only if purely vertical scroll
     if (Math.abs(e.deltaX) === 0 && Math.abs(e.deltaY) > 0) {
       e.preventDefault();
-      gallery.scrollLeft += e.deltaY * 3;
+      
+      // Add to momentum instead of direct scroll
+      momentum += e.deltaY * 2;
+      
+      // Start momentum animation if not running
+      if (!animationFrame) {
+        const animate = () => {
+          if (Math.abs(momentum) > 0.5) {
+            gallery.scrollLeft += momentum;
+            momentum *= 0.95; // Decay like touchpad
+            animationFrame = requestAnimationFrame(animate);
+          } else {
+            momentum = 0;
+            animationFrame = null;
+          }
+        };
+        animate();
+      }
     }
-    // Everything else passes through untouched
   }, { passive: false });
 });
