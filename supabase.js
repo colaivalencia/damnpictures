@@ -1,7 +1,13 @@
-// Direct Google Drive Upload - Replace your supabase.js upload functions
+// Supabase configuration with Direct Google Drive uploads
+const SUPABASE_URL = 'https://yxsgedkyoosbauhydtlp.supabase.co'
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl4c2dlZGt5b29zYmF1aHlkdGxwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAxOTIzMTQsImV4cCI6MjA2NTc2ODMxNH0.CBKJa4Q1K1goiQtc8huQcXMLF6OEwFJ3RLlNSixuHAA'
 
+// Initialize Supabase client
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+
+// Direct Drive helpers for large file uploads
 const directDriveHelpers = {
-  // Get access token from your Netlify function (just for auth)
+  // Get access token from Netlify function
   async getAccessToken() {
     try {
       const response = await fetch('/.netlify/functions/upload-to-drive', {
@@ -22,9 +28,9 @@ const directDriveHelpers = {
     }
   },
 
-  // Get or create user folder
-  async ensureUserFolder(username, accessToken) {
-    const parentFolderId = process.env.GOOGLE_DRIVE_FOLDER_ID || '1NSxPm_mBUYz_exC9dF7zHb1aas6eKbPC';
+  // Get user folder ID
+  async getUserFolder(username, accessToken) {
+    const parentFolderId = '1NSxPm_mBUYz_exC9dF7zHb1aas6eKbPC'; // Replace with your actual folder ID
     
     // Search for existing folder
     const searchUrl = `https://www.googleapis.com/drive/v3/files?q=name='${username}' and parents in '${parentFolderId}' and mimeType='application/vnd.google-apps.folder' and trashed=false`;
@@ -40,12 +46,10 @@ const directDriveHelpers = {
     const searchResult = await searchResponse.json();
     
     if (searchResult.files && searchResult.files.length > 0) {
-      console.log(`✅ Found existing folder: ${searchResult.files[0].id}`);
       return searchResult.files[0].id;
     }
 
     // Create new folder
-    console.log(`🗂️ Creating new folder for: ${username}`);
     const folderResponse = await fetch('https://www.googleapis.com/drive/v3/files', {
       method: 'POST',
       headers: {
@@ -64,27 +68,23 @@ const directDriveHelpers = {
     }
 
     const newFolder = await folderResponse.json();
-    console.log(`✅ Created new folder: ${newFolder.id}`);
     
-    // Make folder publicly viewable
+    // Make folder public
     await this.makeFilePublic(newFolder.id, accessToken);
     
     return newFolder.id;
   },
 
-  // Direct upload to Google Drive (bypasses Netlify limits)
-  async uploadToDrive(file, username) {
+  // Direct upload using resumable API for large files
+  async directUpload(file, username) {
     try {
-      console.log(`🚀 Starting direct upload: ${file.name} (${file.size} bytes)`);
+      console.log(`🚀 Direct upload: ${file.name} (${file.size} bytes)`);
       
-      // Get access token
       const accessToken = await this.getAccessToken();
+      const userFolderId = await this.getUserFolder(username, accessToken);
       
-      // Get user folder
-      const userFolderId = await this.ensureUserFolder(username, accessToken);
-      
-      // Use resumable upload for large files
-      if (file.size > 5 * 1024 * 1024) { // 5MB+
+      // Use resumable upload for files over 5MB
+      if (file.size > 5 * 1024 * 1024) {
         return await this.resumableUpload(file, userFolderId, accessToken);
       } else {
         return await this.simpleUpload(file, userFolderId, accessToken);
@@ -96,7 +96,7 @@ const directDriveHelpers = {
     }
   },
 
-  // Simple upload for smaller files
+  // Simple multipart upload for smaller files
   async simpleUpload(file, parentFolderId, accessToken) {
     const boundary = '-------314159265358979323846';
     const delimiter = `\r\n--${boundary}\r\n`;
@@ -114,7 +114,6 @@ const directDriveHelpers = {
       delimiter +
       `Content-Type: ${file.type}\r\n\r\n`;
 
-    // Convert file to ArrayBuffer for direct upload
     const fileArrayBuffer = await file.arrayBuffer();
 
     const response = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
@@ -136,9 +135,6 @@ const directDriveHelpers = {
     }
 
     const result = await response.json();
-    console.log(`✅ Simple upload successful: ${result.id}`);
-    
-    // Make file public
     await this.makeFilePublic(result.id, accessToken);
     
     return {
@@ -149,14 +145,14 @@ const directDriveHelpers = {
 
   // Resumable upload for large files
   async resumableUpload(file, parentFolderId, accessToken) {
-    console.log(`📤 Using resumable upload for large file: ${file.name}`);
+    console.log(`📤 Resumable upload: ${file.name}`);
     
-    // Step 1: Initiate resumable upload
     const metadata = {
       name: `${Date.now()}_${file.name}`,
       parents: [parentFolderId]
     };
 
+    // Step 1: Initiate resumable upload
     const initiateResponse = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable', {
       method: 'POST',
       headers: {
@@ -171,7 +167,6 @@ const directDriveHelpers = {
     }
 
     const uploadUrl = initiateResponse.headers.get('Location');
-    console.log('📍 Upload URL obtained:', uploadUrl);
 
     // Step 2: Upload file data
     const uploadResponse = await fetch(uploadUrl, {
@@ -188,9 +183,6 @@ const directDriveHelpers = {
     }
 
     const result = await uploadResponse.json();
-    console.log(`✅ Resumable upload successful: ${result.id}`);
-    
-    // Make file public
     await this.makeFilePublic(result.id, accessToken);
     
     return {
@@ -199,11 +191,9 @@ const directDriveHelpers = {
     };
   },
 
-  // Make file publicly accessible
+  // Make file public
   async makeFilePublic(fileId, accessToken) {
     try {
-      console.log(`🔓 Making file public: ${fileId}`);
-      
       const permissionResponse = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}/permissions?sendNotificationEmail=false`, {
         method: 'POST',
         headers: {
@@ -218,77 +208,253 @@ const directDriveHelpers = {
       });
 
       if (!permissionResponse.ok) {
-        const errorText = await permissionResponse.text();
-        console.warn(`⚠️ Permission setting failed: ${errorText}`);
-        // Don't throw - continue even if permissions fail
-      } else {
-        console.log('✅ File made public successfully');
+        console.warn(`⚠️ Permission setting failed for ${fileId}`);
       }
     } catch (error) {
       console.warn('⚠️ Permission error (non-fatal):', error);
     }
-  },
-
-  // Delete file from Google Drive
-  async deleteFromDrive(fileId) {
-    try {
-      const accessToken = await this.getAccessToken();
-      
-      const deleteResponse = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`
-        }
-      });
-
-      if (!deleteResponse.ok) {
-        throw new Error(`Delete failed: ${deleteResponse.status}`);
-      }
-
-      console.log(`✅ File deleted: ${fileId}`);
-      return { success: true };
-      
-    } catch (error) {
-      console.error('❌ Delete failed:', error);
-      return { error: error.message };
-    }
   }
 };
 
-// Updated supabaseHelpers to use direct uploads
-const supabaseHelpers = {
-  // ... keep all your existing auth functions ...
-
-  // Updated upload function using direct Drive API
-  async uploadPhoto(file, username) {
+// Netlify Functions fallback for smaller files
+const netlifyDriveHelpers = {
+  // Upload file to Google Drive via Netlify Function
+  async uploadToDrive(file, username) {
     try {
-      console.log(`🚀 Starting direct upload: ${file.name} for ${username}`);
-      
-      // Upload directly to Google Drive
-      const driveResult = await directDriveHelpers.uploadToDrive(file, username);
-      
+      console.log(`Uploading ${file.name} to Google Drive via Netlify Function`);
+
+      // Convert file to base64
+      const base64Data = await this.fileToBase64(file);
+
+      // Call Netlify Function
+      const response = await fetch('/.netlify/functions/upload-to-drive', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'upload',
+          fileData: base64Data,
+          filename: file.name,
+          username: username,
+          mimeType: file.type
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `HTTP ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log('✅ Google Drive upload successful:', result);
+
       return {
         data: {
-          fileId: driveResult.fileId,
-          publicUrl: driveResult.publicUrl,
-          path: `${username}/${file.name}`
+          fileId: result.fileId,
+          publicUrl: result.publicUrl,
+          path: result.path
         }
       };
 
     } catch (error) {
-      console.error('❌ Upload error:', error);
+      console.error('❌ Google Drive upload failed:', error);
       return { error: error.message };
     }
   },
 
-  // Updated delete function
+  // Delete file from Google Drive via Netlify Function
+  async deleteFromDrive(fileId) {
+    try {
+      console.log(`Deleting file ${fileId} from Google Drive`);
+
+      const response = await fetch('/.netlify/functions/upload-to-drive', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'delete',
+          fileId: fileId
+        })
+      });
+
+      const result = await response.json();
+      return { success: result.success };
+
+    } catch (error) {
+      console.error('❌ Google Drive delete failed:', error);
+      return { error: error.message };
+    }
+  },
+
+  // Convert file to base64
+  fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => {
+        // Remove the data:image/jpeg;base64, prefix
+        const base64 = reader.result.split(',')[1];
+        resolve(base64);
+      };
+      reader.onerror = error => reject(error);
+    });
+  }
+};
+
+// Updated Supabase helpers with smart upload routing
+const supabaseHelpers = {
+  // Auth helpers
+  async signUp(email, password, username) {
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+    })
+    
+    if (error) return { error }
+    
+    if (data.user) {
+      const { error: profileError } = await supabase
+        .from('user_profiles')
+        .insert({
+          id: data.user.id,
+          username,
+          display_name: username
+        })
+      
+      if (profileError) return { error: profileError }
+    }
+    
+    return { data }
+  },
+
+  async signIn(email, password) {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password
+    })
+    return { data, error }
+  },
+
+  async signOut() {
+    const { error } = await supabase.auth.signOut()
+    return { error }
+  },
+
+  async getCurrentUser() {
+    const { data: { user } } = await supabase.auth.getUser()
+    return user
+  },
+
+  // Smart upload: Direct for large files, Netlify for small files
+  async uploadPhoto(file, username) {
+    try {
+      console.log(`Starting upload: ${file.name} for ${username} (${file.size} bytes)`);
+      
+      const maxNetlifySize = 4 * 1024 * 1024; // 4MB base64 limit for Netlify
+      
+      try {
+        // Try direct upload for large files or if Netlify fails
+        if (file.size > maxNetlifySize) {
+          console.log('🚀 Using direct upload for large file');
+          const directResult = await directDriveHelpers.directUpload(file, username);
+          
+          return {
+            data: {
+              fileId: directResult.fileId,
+              publicUrl: directResult.publicUrl,
+              path: `${username}/${file.name}`
+            }
+          };
+        } else {
+          console.log('📤 Using Netlify function for small file');
+          const netlifyResult = await netlifyDriveHelpers.uploadToDrive(file, username);
+          
+          if (netlifyResult.error) {
+            console.log('⚠️ Netlify failed, trying direct upload...');
+            const directResult = await directDriveHelpers.directUpload(file, username);
+            
+            return {
+              data: {
+                fileId: directResult.fileId,
+                publicUrl: directResult.publicUrl,
+                path: `${username}/${file.name}`
+              }
+            };
+          }
+          
+          return netlifyResult;
+        }
+      } catch (error) {
+        console.error('❌ Both upload methods failed:', error);
+        return { error: error.message };
+      }
+
+    } catch (error) {
+      console.error('Upload error:', error);
+      return { error: error.message };
+    }
+  },
+
+  async savePhotoMetadata(photoData, user) {
+    const { data, error } = await supabase
+      .from('photos')
+      .insert({
+        user_id: user.id,
+        username: photoData.username,
+        filename: photoData.filename,
+        original_name: photoData.original_name,
+        file_url: photoData.publicUrl,
+        drive_file_id: photoData.fileId,
+        file_size: photoData.file_size,
+        is_public: true
+      })
+
+    return { data, error }
+  },
+
+  async getPublicPhotos() {
+    const { data, error } = await supabase
+      .from('photos')
+      .select('*')
+      .eq('is_public', true)
+      .order('created_at', { ascending: false })
+
+    return { data, error }
+  },
+
+  async getUserPhotos(username) {
+    const { data, error } = await supabase
+      .from('photos')
+      .select('*')
+      .eq('username', username)
+      .eq('is_public', true)
+      .order('created_at', { ascending: false })
+
+    return { data, error }
+  },
+
+  async getUsersWithPhotos() {
+    const { data, error } = await supabase
+      .from('user_profiles')
+      .select(`
+        username,
+        display_name,
+        photos!inner(id)
+      `)
+      .eq('photos.is_public', true)
+
+    return { data, error }
+  },
+
   async deletePhoto(photoId, driveFileId) {
     try {
       // Delete from Google Drive first
-      const driveResult = await directDriveHelpers.deleteFromDrive(driveFileId);
+      const driveResult = await netlifyDriveHelpers.deleteFromDrive(driveFileId);
       
       if (driveResult.error) {
-        console.warn('⚠️ Failed to delete from Google Drive:', driveResult.error);
+        console.warn('Failed to delete from Google Drive:', driveResult.error);
       }
 
       // Delete from database
@@ -302,12 +468,10 @@ const supabaseHelpers = {
     } catch (error) {
       return { error: error.message }
     }
-  },
+  }
+}
 
-  // ... keep all your other existing functions (savePhotoMetadata, getUserPhotos, etc.) ...
-};
+// Make available globally
+window.supabaseHelpers = supabaseHelpers
 
-// Replace the global reference
-window.supabaseHelpers = supabaseHelpers;
-
-console.log('🚀 Direct Google Drive upload system loaded - no size limits!');
+console.log('🚀 Smart Google Drive upload system loaded - handles any file size!');
