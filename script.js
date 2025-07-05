@@ -1243,13 +1243,19 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Keep your original wheel behavior exactly - no preventDefault, no smooth scrolling
+  // Isolate scroll directions - only respond to the dominant direction
   gallery.addEventListener('wheel', (e) => {
-    // Convert vertical scroll to horizontal exactly like your original
-    if (Math.abs(e.deltaX) < Math.abs(e.deltaY)) {
-      gallery.scrollLeft += e.deltaY;
-    } else {
+    const absX = Math.abs(e.deltaX);
+    const absY = Math.abs(e.deltaY);
+    
+    // Only respond if one direction is clearly dominant (3:1 ratio)
+    if (absX > absY * 3) {
+      // Primarily horizontal - use horizontal delta
       gallery.scrollLeft += e.deltaX;
+    } else if (absY > absX * 3) {
+      // Primarily vertical - convert to horizontal
+      gallery.scrollLeft += e.deltaY;
     }
+    // Ignore diagonal/mixed scrolling
   });
 });
