@@ -1234,7 +1234,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const gallery = document.getElementById('gallery');
   let isScrolling = false;
   
-  // Arrow key navigation
+  // Arrow key navigation only
   document.addEventListener('keydown', (e) => {
     if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
       e.preventDefault();
@@ -1254,13 +1254,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Enhanced mousewheel - only for traditional scroll wheels
+  // Enhanced mousewheel - ONLY for traditional scroll wheels doing vertical scroll
   gallery.addEventListener('wheel', (e) => {
-    // Only intercept if it's a traditional scroll wheel
-    const isTraditionalWheel = Math.abs(e.deltaY) > 100 && e.deltaMode === 0;
+    // Only intercept vertical scrolling on traditional wheels
+    const isVerticalTraditionalWheel = Math.abs(e.deltaY) > 100 && Math.abs(e.deltaX) < 10 && e.deltaMode === 0;
     
-    if (isTraditionalWheel && !isScrolling) {
-      e.preventDefault();
+    if (isVerticalTraditionalWheel && !isScrolling) {
+      e.preventDefault(); // Only prevent when we're handling it
       isScrolling = true;
       
       const scrollAmount = e.deltaY > 0 ? 
@@ -1273,6 +1273,6 @@ document.addEventListener('DOMContentLoaded', () => {
       
       setTimeout(() => { isScrolling = false; }, 300);
     }
-    // Let trackpads/magic mouse scroll naturally (don't prevent default)
+    // All other scrolling (horizontal, trackpad, etc.) works normally
   }, { passive: false });
 });
