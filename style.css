@@ -695,7 +695,7 @@ body {
   border-color: rgba(102, 126, 234, 0.3);
 }
 
-/* Edit mode styles */
+/* Edit mode styles - when photos grid has edit-mode class */
 .photos-grid.edit-mode .photo-item:hover {
   transform: scale(1.02);
   box-shadow: 0 4px 16px rgba(102, 126, 234, 0.2);
@@ -710,7 +710,7 @@ body {
 }
 
 .photo-item.selected .photo-overlay {
-  opacity: 0.3;
+  opacity: 0.3 !important;
   background: rgba(102, 126, 234, 0.4);
 }
 
@@ -741,7 +741,7 @@ body {
 
 /* Hide delete overlay in edit mode */
 .photos-grid.edit-mode .photo-overlay {
-  display: none;
+  display: none !important;
 }
 
 .delete-btn {
@@ -776,10 +776,11 @@ body {
   transition: all 0.2s ease;
 }
 
-/* Show checkboxes in edit mode */
+/* Show checkboxes in edit mode - this is the key fix */
 .photos-grid.edit-mode .photo-checkbox {
-  opacity: 1;
-  pointer-events: auto;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  display: block !important;
 }
 
 /* Pretty circular checkbox for individual photos */

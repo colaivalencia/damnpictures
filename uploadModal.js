@@ -733,25 +733,13 @@ class ImageUploadManager {
     // Bulk actions (hidden by default)
     const bulkActionsHtml = `
       <div class="bulk-actions" id="bulkActions" style="grid-column: 1 / -1; margin-bottom: 16px; display: none;">
-        <div style="display: flex; align-items: center; gap: 12px; padding: 12px; background: #333; border-radius: 8px;">
-          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-            <input type="checkbox" id="selectAllPhotos" style="margin: 0;" />
-            <span style="color: #ccc; font-size: 14px;">Select All</span>
-          </label>
-          <div class="bulk-controls" style="display: flex; align-items: center; gap: 8px; margin-left: auto;">
-            <span id="selectedCount" style="color: #999; font-size: 14px;">0 selected</span>
-            <button id="deleteSelectedBtn" class="delete-selected-btn" style="
-              background: #ff4757; 
-              color: white; 
-              border: none; 
-              padding: 6px 12px; 
-              border-radius: 6px; 
-              font-size: 12px; 
-              cursor: pointer;
-              opacity: 0.5;
-              pointer-events: none;
-            " disabled>Delete Selected</button>
-          </div>
+        <label>
+          <input type="checkbox" id="selectAllPhotos" />
+          <span>Select All</span>
+        </label>
+        <div class="bulk-controls">
+          <span id="selectedCount">0 selected</span>
+          <button id="deleteSelectedBtn" class="delete-selected-btn" disabled>Delete Selected</button>
         </div>
       </div>
     `;
@@ -762,23 +750,12 @@ class ImageUploadManager {
       
       return `
         <div class="photo-item" data-photo-id="${photo.id}">
-          <div class="photo-checkbox" style="
-            position: absolute;
-            top: 8px;
-            left: 8px;
-            z-index: 10;
-            display: none;
-          ">
-            <input type="checkbox" class="photo-select" data-photo-id="${photo.id}" data-drive-id="${photo.drive_file_id}" style="
-              width: 18px;
-              height: 18px;
-              cursor: pointer;
-              accent-color: #667eea;
-            " />
+          <div class="photo-checkbox">
+            <input type="checkbox" class="photo-select" data-photo-id="${photo.id}" data-drive-id="${photo.drive_file_id}" />
           </div>
           <img src="${imageUrl}" alt="${photo.original_name}" loading="lazy" 
                onerror="uploadManager.handleImageError(this, '${photo.drive_file_id}')" />
-          <div class="photo-overlay" style="opacity: 0; transition: all 0.2s ease;">
+          <div class="photo-overlay">
             <button class="delete-btn" onclick="uploadManager.deletePhoto('${photo.id}', '${photo.drive_file_id}')">
               ×
             </button>
@@ -799,8 +776,7 @@ class ImageUploadManager {
   setupEditToggle() {
     const editToggleBtn = document.getElementById('editToggleBtn');
     const bulkActions = document.getElementById('bulkActions');
-    const photoCheckboxes = document.querySelectorAll('.photo-checkbox');
-    const photoOverlays = document.querySelectorAll('.photo-overlay');
+    const photosGrid = document.getElementById('photoList');
     
     if (!editToggleBtn) return;
     
@@ -815,20 +791,15 @@ class ImageUploadManager {
         editToggleBtn.style.borderColor = '#ff4757';
         editToggleBtn.style.color = 'white';
         
+        // Add edit-mode class to photos grid
+        if (photosGrid) {
+          photosGrid.classList.add('edit-mode');
+        }
+        
         // Show bulk actions
         if (bulkActions) {
           bulkActions.style.display = 'block';
         }
-        
-        // Show checkboxes
-        photoCheckboxes.forEach(checkbox => {
-          checkbox.style.display = 'block';
-        });
-        
-        // Hide individual delete buttons
-        photoOverlays.forEach(overlay => {
-          overlay.style.display = 'none';
-        });
         
         // Setup bulk selection listeners
         this.setupBulkSelectionListeners();
@@ -840,20 +811,20 @@ class ImageUploadManager {
         editToggleBtn.style.borderColor = '#667eea';
         editToggleBtn.style.color = '#667eea';
         
+        // Remove edit-mode class from photos grid
+        if (photosGrid) {
+          photosGrid.classList.remove('edit-mode');
+        }
+        
         // Hide bulk actions
         if (bulkActions) {
           bulkActions.style.display = 'none';
         }
         
-        // Hide checkboxes
+        // Clear all checkboxes
+        const photoCheckboxes = document.querySelectorAll('.photo-select');
         photoCheckboxes.forEach(checkbox => {
-          checkbox.style.display = 'none';
           checkbox.checked = false;
-        });
-        
-        // Show individual delete buttons
-        photoOverlays.forEach(overlay => {
-          overlay.style.display = 'flex';
         });
         
         // Clear selections
@@ -878,10 +849,13 @@ class ImageUploadManager {
         const isChecked = e.target.checked;
         photoCheckboxes.forEach(checkbox => {
           checkbox.checked = isChecked;
+          const photoId = checkbox.dataset.photoId;
           if (isChecked) {
-            this.selectedPhotos.add(checkbox.dataset.photoId);
+            this.selectedPhotos.add(photoId);
+            checkbox.closest('.photo-item').classList.add('selected');
           } else {
-            this.selectedPhotos.delete(checkbox.dataset.photoId);
+            this.selectedPhotos.delete(photoId);
+            checkbox.closest('.photo-item').classList.remove('selected');
           }
         });
         this.updateBulkControls();
@@ -892,10 +866,14 @@ class ImageUploadManager {
     photoCheckboxes.forEach(checkbox => {
       checkbox.addEventListener('change', (e) => {
         const photoId = e.target.dataset.photoId;
+        const photoItem = e.target.closest('.photo-item');
+        
         if (e.target.checked) {
           this.selectedPhotos.add(photoId);
+          photoItem.classList.add('selected');
         } else {
           this.selectedPhotos.delete(photoId);
+          photoItem.classList.remove('selected');
           if (selectAllCheckbox) {
             selectAllCheckbox.checked = false;
           }
@@ -1087,21 +1065,24 @@ window.testPhotoLoad = async function() {
 
 console.log('📸 Upload manager loaded. Test with: window.testPhotoLoad()');
 
-// Simple click-to-select for photos
+// Simple click-to-select for photos - works with existing bulk selection
 document.addEventListener('click', function(e) {
   const photoItem = e.target.closest('.photo-item');
   if (!photoItem) return;
   
-  // Don't interfere with delete button
-  if (e.target.closest('.delete-btn')) return;
+  // Only work in edit mode
+  if (!window.uploadManager || !window.uploadManager.editMode) return;
   
-  // Find the checkbox
-  const checkbox = photoItem.querySelector('input[type="checkbox"]');
+  // Don't interfere with existing buttons or checkboxes
+  if (e.target.closest('.delete-btn') || e.target.type === 'checkbox') return;
+  
+  // Find the checkbox for this photo
+  const checkbox = photoItem.querySelector('.photo-select');
   if (!checkbox) return;
   
   // Toggle the checkbox
   checkbox.checked = !checkbox.checked;
   
-  // Trigger the change event so existing bulk selection logic still works
+  // Trigger the change event so existing bulk selection logic works
   checkbox.dispatchEvent(new Event('change', { bubbles: true }));
 });
