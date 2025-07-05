@@ -1243,15 +1243,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Prevent default on ALL wheel events to stop rubber banding
+  // Copy your exact original wheel logic
   gallery.addEventListener('wheel', (e) => {
     e.preventDefault();
     
-    if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
-      // Vertical scroll - convert to horizontal
-      gallery.scrollLeft += e.deltaY;
+    // Exactly like your original - simple conversion
+    if (Math.abs(e.deltaX) < Math.abs(e.deltaY)) {
+      gallery.scrollLeft += e.deltaY * 0.5;
     } else {
-      // Horizontal scroll - use as is
       gallery.scrollLeft += e.deltaX;
     }
   }, { passive: false });
