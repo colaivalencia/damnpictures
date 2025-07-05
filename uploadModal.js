@@ -51,6 +51,7 @@ class ImageUploadManager {
             const modal = mutation.target;
             if (!modal.classList.contains('hidden') && window.isLoggedIn()) {
               this.loadUserPhotos();
+              this.updateUploadText(); // Update text when modal opens
             }
           }
         });
@@ -60,6 +61,18 @@ class ImageUploadManager {
         attributes: true,
         attributeFilter: ['class']
       });
+    }
+  }
+
+  // Update upload section text based on user privileges
+  updateUploadText() {
+    const uploadSubtext = document.querySelector('.upload-subtext');
+    if (uploadSubtext) {
+      if (this.isProUser()) {
+        uploadSubtext.textContent = 'Supports JPG, PNG, GIF • Up to 50MB • No compression';
+      } else {
+        uploadSubtext.textContent = 'Supports JPG, PNG, GIF • Auto-compressed to 8MB • Any size accepted';
+      }
     }
   }
 
