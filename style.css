@@ -687,10 +687,18 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
-.photo-item:hover {
+/* Default hover state (view mode) */
+.photo-item:not(.selectable):hover {
   transform: scale(1.05);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
   border-color: rgba(102, 126, 234, 0.3);
+}
+
+/* Edit mode hover state */
+.photo-item.selectable:hover:not(.selected) {
+  transform: scale(1.02);
+  box-shadow: 0 4px 16px rgba(102, 126, 234, 0.2);
+  border-color: rgba(102, 126, 234, 0.4);
 }
 
 .photo-item img {
@@ -698,6 +706,7 @@ body {
   height: 100%;
   object-fit: cover;
   transition: all 0.2s ease;
+  pointer-events: none;
 }
 
 .photo-overlay {
@@ -712,10 +721,17 @@ body {
   justify-content: center;
   opacity: 0;
   transition: all 0.2s ease;
+  pointer-events: none;
 }
 
-.photo-item:hover .photo-overlay {
+/* Show overlay on hover in view mode only */
+.photo-item:not(.selectable):hover .photo-overlay {
   opacity: 1;
+}
+
+/* Hide delete button in edit mode */
+.photos-grid.edit-mode .photo-overlay {
+  display: none;
 }
 
 .delete-btn {
@@ -739,31 +755,124 @@ body {
   transform: scale(1.1);
 }
 
-/* === BULK SELECTION === */
+/* === EDIT MODE & BULK SELECTION === */
+.edit-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 8px;
+  margin-bottom: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  grid-column: 1 / -1;
+}
+
+.edit-controls h3 {
+  margin: 0;
+  color: #fff;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.edit-toggle-btn {
+  background: transparent;
+  color: #667eea;
+  border: 1px solid #667eea;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.edit-toggle-btn:hover {
+  background: rgba(102, 126, 234, 0.1);
+  transform: translateY(-1px);
+}
+
+.edit-toggle-btn.cancel-mode {
+  background: #ff4757;
+  border-color: #ff4757;
+  color: white;
+}
+
+.edit-toggle-btn.cancel-mode:hover {
+  background: #ff3742;
+}
+
 .bulk-actions {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px;
+  padding: 12px 16px;
   background: rgba(255, 255, 255, 0.02);
   border-radius: 8px;
   margin-bottom: 16px;
   border: 1px solid rgba(255, 255, 255, 0.06);
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .bulk-actions label {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   cursor: pointer;
   user-select: none;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.8);
+  transition: color 0.2s ease;
 }
 
+.bulk-actions label:hover {
+  color: rgba(255, 255, 255, 1);
+}
+
+/* Custom circular checkbox for bulk select all */
 .bulk-actions input[type="checkbox"] {
-  width: 16px;
-  height: 16px;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  background: transparent;
   cursor: pointer;
-  accent-color: #667eea;
+  position: relative;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.bulk-actions input[type="checkbox"]:hover {
+  border-color: #667eea;
+  transform: scale(1.1);
+}
+
+.bulk-actions input[type="checkbox"]:checked {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  border-color: #667eea;
+}
+
+.bulk-actions input[type="checkbox"]:checked::after {
+  content: '✓';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: white;
+  font-size: 12px;
+  font-weight: bold;
 }
 
 .bulk-controls {
@@ -773,21 +882,31 @@ body {
   margin-left: auto;
 }
 
+.selection-count {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+  margin-right: 8px;
+}
+
 .delete-selected-btn {
   background: #ff4757;
   color: white;
   border: none;
-  padding: 6px 12px;
+  padding: 8px 16px;
   border-radius: 6px;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .delete-selected-btn:not(:disabled):hover {
   background: #ff3742;
   transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(255, 71, 87, 0.3);
 }
 
 .delete-selected-btn:disabled {
@@ -795,21 +914,103 @@ body {
   cursor: not-allowed;
 }
 
-.photo-checkbox {
-  position: absolute;
-  top: 8px;
-  left: 8px;
-  z-index: 10;
+/* === PHOTO SELECTION SYSTEM === */
+.photo-item.selectable {
+  cursor: pointer;
+  transition: all 0.2s ease;
 }
 
+.photo-item.selectable:hover {
+  transform: scale(1.02);
+  box-shadow: 0 4px 16px rgba(102, 126, 234, 0.2);
+}
+
+.photo-item.selected {
+  transform: scale(0.95);
+  box-shadow: 0 0 0 3px #667eea, 0 8px 24px rgba(102, 126, 234, 0.4);
+  border-color: #667eea;
+}
+
+.photo-item.selected .photo-overlay {
+  opacity: 0.3;
+  background: rgba(102, 126, 234, 0.4);
+}
+
+.photo-checkbox {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 10;
+  pointer-events: none;
+}
+
+/* Custom circular checkbox for individual photos */
 .photo-checkbox input[type="checkbox"] {
-  width: 18px;
-  height: 18px;
+  appearance: none;
+  width: 24px;
+  height: 24px;
+  border: 2px solid rgba(255, 255, 255, 0.8);
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
   cursor: pointer;
-  accent-color: #667eea;
-  background: rgba(0, 0, 0, 0.5);
-  border: 2px solid #fff;
-  border-radius: 3px;
+  position: relative;
+  transition: all 0.2s ease;
+  pointer-events: auto;
+}
+
+.photo-checkbox input[type="checkbox"]:hover {
+  border-color: #667eea;
+  background: rgba(102, 126, 234, 0.2);
+  transform: scale(1.1);
+}
+
+.photo-checkbox input[type="checkbox"]:checked {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  border-color: #667eea;
+  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.3);
+}
+
+.photo-checkbox input[type="checkbox"]:checked::after {
+  content: '✓';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: white;
+  font-size: 14px;
+  font-weight: bold;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+/* Photo checkbox visibility in edit mode */
+.photos-grid:not(.edit-mode) .photo-checkbox {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.photos-grid.edit-mode .photo-checkbox {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Selection ripple effect */
+.photo-item.selectable::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(circle, rgba(102, 126, 234, 0.1) 0%, transparent 70%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+  z-index: 1;
+}
+
+.photo-item.selected::before {
+  opacity: 1;
 }
 
 /* === EMPTY STATES === */
