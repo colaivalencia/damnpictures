@@ -1229,3 +1229,28 @@ document.addEventListener('DOMContentLoaded', () => {
 // Export for use in other modules
 window.modalStabilityManager = modalStabilityManager;
 
+// Enhanced scrolling - arrow keys + vertical mouse wheel only
+document.addEventListener('DOMContentLoaded', () => {
+  const gallery = document.getElementById('gallery');
+  
+  // Arrow key navigation
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+      e.preventDefault();
+      const scrollAmount = e.key === 'ArrowRight' ? 
+        window.innerWidth * 0.8 : -window.innerWidth * 0.8;
+      gallery.scrollLeft += scrollAmount;
+    }
+  });
+
+  // Only intercept vertical mouse wheel - leave all touchpad alone
+  gallery.addEventListener('wheel', (e) => {
+    // Only handle if it's clearly a vertical mouse wheel (big deltaY, no deltaX)
+    if (Math.abs(e.deltaY) > 50 && Math.abs(e.deltaX) < 10) {
+      e.preventDefault();
+      // Scroll like horizontal touchpad (1:1 direct)
+      gallery.scrollLeft += e.deltaY;
+    }
+    // Let everything else (touchpad horizontal/vertical) work exactly as original
+  }, { passive: false });
+});
