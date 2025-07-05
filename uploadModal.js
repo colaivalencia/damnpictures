@@ -1,13 +1,13 @@
-// Clean uploadModal.js with fixed modal controls
+// Clean uploadModal.js with FIXED UI and edit modes
 
 class ImageUploadManager {
   constructor() {
-    this.maxFileSize = 2 * 1024 * 1024; // 2MB in bytes
-    this.compressionQuality = 0.8; // Start with 80% quality
-    this.maxDimension = 2048; // Max width/height for compression
-    this.selectedPhotos = new Set(); // Track selected photos for bulk delete
-    this.pendingFiles = []; // Files ready for upload confirmation
-    this.editMode = false; // Track if we're in edit/delete mode
+    this.maxFileSize = 8 * 1024 * 1024; // 8MB like Discord
+    this.compressionQuality = 0.8;
+    this.maxDimension = 2048;
+    this.selectedPhotos = new Set();
+    this.pendingFiles = [];
+    this.editMode = false;
     this.init();
   }
 
@@ -23,21 +23,17 @@ class ImageUploadManager {
     this.setupEventListeners();
     this.createConfirmationModal();
     this.setupModalOpenListener();
-    
-    // Load photos when initialized
     this.loadUserPhotos();
   }
 
   setupModalOpenListener() {
     const uploadModal = document.getElementById('uploadModal');
     if (uploadModal) {
-      // Use MutationObserver to detect when modal becomes visible
       const observer = new MutationObserver((mutations) => {
         mutations.forEach((mutation) => {
           if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
             const modal = mutation.target;
             if (!modal.classList.contains('hidden') && window.isLoggedIn()) {
-              console.log('🎯 Upload modal opened, loading photos...');
               this.loadUserPhotos();
             }
           }
@@ -48,13 +44,10 @@ class ImageUploadManager {
         attributes: true,
         attributeFilter: ['class']
       });
-      
-      console.log('📋 Modal open listener setup complete');
     }
   }
 
   createConfirmationModal() {
-    // Create upload confirmation modal if it doesn't exist
     if (document.getElementById('uploadConfirmModal')) return;
 
     const confirmModal = document.createElement('div');
@@ -82,82 +75,54 @@ class ImageUploadManager {
     `;
 
     document.body.appendChild(confirmModal);
-
-    // Setup event listeners for confirmation modal
     this.setupConfirmationModalListeners();
   }
 
   setupConfirmationModalListeners() {
-    console.log('🔗 Setting up confirmation modal listeners...');
-    
-    // Close button
     const closeConfirmModal = document.getElementById('closeConfirmModal');
     if (closeConfirmModal) {
-      console.log('✅ Found confirmation modal close button');
       closeConfirmModal.addEventListener('click', (e) => {
-        console.log('🔴 Confirmation modal close button clicked');
         e.preventDefault();
         e.stopPropagation();
         this.hideConfirmationModal();
       });
-    } else {
-      console.error('❌ Confirmation modal close button not found');
     }
 
-    // Cancel button
     const cancelUploadBtn = document.getElementById('cancelUploadBtn');
     if (cancelUploadBtn) {
-      console.log('✅ Found cancel upload button');
       cancelUploadBtn.addEventListener('click', (e) => {
-        console.log('🔴 Cancel upload button clicked');
         e.preventDefault();
         e.stopPropagation();
         this.cancelUpload();
       });
-    } else {
-      console.error('❌ Cancel upload button not found');
     }
 
-    // Proceed button
     const proceedUploadBtn = document.getElementById('proceedUploadBtn');
     if (proceedUploadBtn) {
-      console.log('✅ Found proceed upload button');
       proceedUploadBtn.addEventListener('click', (e) => {
-        console.log('🔴 Proceed upload button clicked');
         e.preventDefault();
         e.stopPropagation();
         this.proceedWithUpload();
       });
-    } else {
-      console.error('❌ Proceed upload button not found');
     }
 
-    // Click outside to close
     const confirmModal = document.getElementById('uploadConfirmModal');
     if (confirmModal) {
-      console.log('✅ Found confirmation modal for click outside');
       confirmModal.addEventListener('click', (e) => {
         if (e.target === confirmModal) {
-          console.log('🔴 Clicked outside confirmation modal');
           this.hideConfirmationModal();
         }
       });
 
-      // Escape key
       confirmModal.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
-          console.log('🔴 Escape pressed in confirmation modal');
           this.hideConfirmationModal();
         }
       });
-      console.log('✅ Confirmation modal escape listener added');
-    } else {
-      console.error('❌ Confirmation modal not found for click outside');
     }
   }
 
   setupEventListeners() {
-    // File input change
     if (this.fileInput) {
       this.fileInput.addEventListener('change', (e) => {
         this.handleFiles(e.target.files);
@@ -165,7 +130,6 @@ class ImageUploadManager {
       });
     }
 
-    // Upload button click - Show confirmation
     if (this.uploadBtn) {
       this.uploadBtn.addEventListener('click', (e) => {
         e.preventDefault();
@@ -177,7 +141,6 @@ class ImageUploadManager {
       });
     }
 
-    // Drag and drop
     this.setupDragAndDrop();
   }
 
@@ -232,8 +195,6 @@ class ImageUploadManager {
   }
 
   async validateAndDisplayFiles(files) {
-    console.log(`Processing ${files.length} files...`);
-    
     const validFiles = [];
     const oversizedFiles = [];
     
@@ -243,12 +204,10 @@ class ImageUploadManager {
           const compressedFile = await this.compressImage(file);
           if (compressedFile.size <= this.maxFileSize) {
             validFiles.push(compressedFile);
-            console.log(`✅ Compressed ${file.name} from ${this.formatFileSize(file.size)} to ${this.formatFileSize(compressedFile.size)}`);
           } else {
             oversizedFiles.push(file);
           }
         } catch (error) {
-          console.error(`Compression failed for ${file.name}:`, error);
           oversizedFiles.push(file);
         }
       } else {
@@ -355,14 +314,12 @@ class ImageUploadManager {
     if (!this.uploadBtn || !uploadBtnContainer) return;
     
     if (fileCount > 0) {
-      // Show both Review and Quick Upload buttons
       this.uploadBtn.textContent = `Review ${fileCount} Photo${fileCount > 1 ? 's' : ''}`;
       this.uploadBtn.disabled = false;
       this.uploadBtn.style.background = 'transparent';
       this.uploadBtn.style.border = '2px solid #667eea';
       this.uploadBtn.style.color = '#667eea';
       
-      // Create or update quick upload button
       let quickUploadBtn = document.getElementById('quickUploadBtn');
       if (!quickUploadBtn) {
         quickUploadBtn = document.createElement('button');
@@ -380,7 +337,6 @@ class ImageUploadManager {
       quickUploadBtn.style.display = 'block';
       
     } else {
-      // Reset to default state
       this.uploadBtn.textContent = 'Select Photos';
       this.uploadBtn.disabled = true;
       this.uploadBtn.style.background = '#555';
@@ -500,18 +456,13 @@ class ImageUploadManager {
   }
 
   hideConfirmationModal() {
-    console.log('🔴 Hiding confirmation modal');
     const confirmModal = document.getElementById('uploadConfirmModal');
     if (confirmModal) {
       confirmModal.classList.add('hidden');
-      console.log('✅ Confirmation modal hidden successfully');
-    } else {
-      console.error('❌ Confirmation modal not found');
     }
   }
 
   cancelUpload() {
-    console.log('🔴 Canceling upload');
     this.pendingFiles = [];
     if (this.fileInput) {
       this.fileInput.value = '';
@@ -524,7 +475,6 @@ class ImageUploadManager {
     if (quickUploadBtn) {
       quickUploadBtn.style.display = 'none';
     }
-    console.log('✅ Upload canceled successfully');
   }
 
   async proceedWithUpload() {
@@ -627,7 +577,7 @@ class ImageUploadManager {
       uploadText.textContent = 'Drop your photos here or click to browse';
     }
     if (uploadSubtext) {
-      uploadSubtext.textContent = 'Supports JPG, PNG, GIF • Auto-compressed to 2MB • Any size accepted';
+      uploadSubtext.textContent = 'Supports JPG, PNG, GIF • Auto-compressed to 8MB • Any size accepted';
     }
   }
 
@@ -649,32 +599,18 @@ class ImageUploadManager {
   }
 
   async loadUserPhotos() {
-    console.log('=== loadUserPhotos called ===');
-    
     const userProfile = window.getCurrentUserProfile();
-    console.log('User profile:', userProfile);
     
     if (!userProfile) {
-      console.log('❌ No user profile found');
       return;
     }
 
     try {
-      console.log(`🔍 Fetching photos for username: ${userProfile.username}`);
-      
       const { data: photos, error } = await supabaseHelpers.getUserPhotos(userProfile.username);
-      
-      console.log('Supabase response:', { photos: photos?.length, error });
       
       if (error) {
         console.error('Error loading user photos:', error);
         return;
-      }
-
-      console.log(`📸 Found ${photos?.length || 0} photos`);
-      
-      if (photos && photos.length > 0) {
-        console.log('Sample photo:', photos[0]);
       }
 
       this.displayUserPhotos(photos || []);
@@ -685,17 +621,11 @@ class ImageUploadManager {
   }
 
   displayUserPhotos(photos) {
-    console.log('=== displayUserPhotos called ===');
-    console.log('Photos to display:', photos?.length);
-    console.log('photoList element:', this.photoList);
-    
     if (!this.photoList) {
-      console.error('❌ photoList element not found!');
       return;
     }
     
     if (!photos || photos.length === 0) {
-      console.log('📝 Showing empty state');
       this.photoList.innerHTML = `
         <div class="empty-state">
           <div class="empty-state-icon">📷</div>
@@ -705,13 +635,11 @@ class ImageUploadManager {
       return;
     }
 
-    console.log('🎨 Generating HTML for photos...');
-    
-    // Clear selected photos when reloading
+    // Reset edit mode and selections when loading photos
     this.selectedPhotos.clear();
-    this.editMode = false; // Reset edit mode
+    this.editMode = false;
 
-    // Create edit/cancel button header
+    // Create header with edit button
     const editButtonHtml = `
       <div class="edit-controls" style="grid-column: 1 / -1; margin-bottom: 16px;">
         <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px; background: #222; border-radius: 8px;">
@@ -744,9 +672,9 @@ class ImageUploadManager {
       </div>
     `;
     
-    const photosHtml = photos.map((photo, index) => {
+    // Generate photo HTML
+    const photosHtml = photos.map((photo) => {
       const imageUrl = this.getOptimizedImageUrl(photo);
-      console.log(`Photo ${index + 1}: ${photo.filename} → ${imageUrl}`);
       
       return `
         <div class="photo-item" data-photo-id="${photo.id}">
@@ -764,13 +692,8 @@ class ImageUploadManager {
       `;
     }).join('');
     
-    console.log('📄 Setting innerHTML...');
     this.photoList.innerHTML = editButtonHtml + bulkActionsHtml + photosHtml;
-    
-    // Setup edit toggle functionality
     this.setupEditToggle();
-    
-    console.log('✅ displayUserPhotos complete');
   }
 
   setupEditToggle() {
@@ -791,17 +714,17 @@ class ImageUploadManager {
         editToggleBtn.style.borderColor = '#ff4757';
         editToggleBtn.style.color = 'white';
         
-        // Add edit-mode class to photos grid
+        // Add edit-mode class - this shows checkboxes and hides delete buttons
         if (photosGrid) {
           photosGrid.classList.add('edit-mode');
         }
         
         // Show bulk actions
         if (bulkActions) {
-          bulkActions.style.display = 'block';
+          bulkActions.style.display = 'flex';
         }
         
-        // Setup bulk selection listeners
+        // Setup selection listeners
         this.setupBulkSelectionListeners();
         
       } else {
@@ -811,7 +734,7 @@ class ImageUploadManager {
         editToggleBtn.style.borderColor = '#667eea';
         editToggleBtn.style.color = '#667eea';
         
-        // Remove edit-mode class from photos grid
+        // Remove edit-mode class - this hides checkboxes and shows delete buttons
         if (photosGrid) {
           photosGrid.classList.remove('edit-mode');
         }
@@ -821,13 +744,18 @@ class ImageUploadManager {
           bulkActions.style.display = 'none';
         }
         
-        // Clear all checkboxes
+        // Clear all selections
         const photoCheckboxes = document.querySelectorAll('.photo-select');
         photoCheckboxes.forEach(checkbox => {
           checkbox.checked = false;
         });
         
-        // Clear selections
+        // Remove selected class from all photos
+        const photoItems = document.querySelectorAll('.photo-item');
+        photoItems.forEach(item => {
+          item.classList.remove('selected');
+        });
+        
         this.selectedPhotos.clear();
       }
     });
@@ -836,26 +764,26 @@ class ImageUploadManager {
   setupBulkSelectionListeners() {
     const selectAllCheckbox = document.getElementById('selectAllPhotos');
     const deleteSelectedBtn = document.getElementById('deleteSelectedBtn');
-    const selectedCountSpan = document.getElementById('selectedCount');
     const photoCheckboxes = document.querySelectorAll('.photo-select');
 
-    // Reset selections
     this.selectedPhotos.clear();
     this.updateBulkControls();
 
-    // Select all/none functionality
+    // Select all functionality
     if (selectAllCheckbox) {
       selectAllCheckbox.addEventListener('change', (e) => {
         const isChecked = e.target.checked;
         photoCheckboxes.forEach(checkbox => {
           checkbox.checked = isChecked;
           const photoId = checkbox.dataset.photoId;
+          const photoItem = checkbox.closest('.photo-item');
+          
           if (isChecked) {
             this.selectedPhotos.add(photoId);
-            checkbox.closest('.photo-item').classList.add('selected');
+            photoItem.classList.add('selected');
           } else {
             this.selectedPhotos.delete(photoId);
-            checkbox.closest('.photo-item').classList.remove('selected');
+            photoItem.classList.remove('selected');
           }
         });
         this.updateBulkControls();
@@ -923,7 +851,6 @@ class ImageUploadManager {
       return;
     }
 
-    const deleteSelectedBtn = document.getElementById('deleteSelectedBtn');
     const editToggleBtn = document.getElementById('editToggleBtn');
     
     if (editToggleBtn) {
@@ -941,14 +868,11 @@ class ImageUploadManager {
         const { error } = await supabaseHelpers.deletePhoto(photoId, driveFileId);
         
         if (error) {
-          console.error(`Delete failed for photo ${photoId}:`, error);
           results.failed++;
         } else {
-          console.log(`✅ Deleted photo ${photoId}`);
           results.successful++;
         }
       } catch (error) {
-        console.error(`Error deleting photo ${photoId}:`, error);
         results.failed++;
       }
     }
@@ -956,8 +880,6 @@ class ImageUploadManager {
     // Show results
     if (results.failed > 0) {
       alert(`Deleted ${results.successful} photos. ${results.failed} failed to delete.`);
-    } else {
-      console.log(`✅ Successfully deleted ${results.successful} photos`);
     }
 
     // Clear selection and reload photos
@@ -974,8 +896,6 @@ class ImageUploadManager {
   }
 
   handleImageError(imgElement, driveFileId) {
-    console.log(`Image failed to load for drive ID: ${driveFileId}`);
-    
     const fallbackUrls = [
       `https://drive.google.com/uc?export=view&id=${driveFileId}`,
       `https://lh3.googleusercontent.com/d/${driveFileId}=w400`,
@@ -987,7 +907,6 @@ class ImageUploadManager {
     const nextFallback = fallbackUrls.find(url => url !== currentSrc);
 
     if (nextFallback) {
-      console.log(`Trying fallback URL: ${nextFallback}`);
       imgElement.src = nextFallback;
     } else {
       imgElement.style.display = 'none';
@@ -1023,11 +942,6 @@ class ImageUploadManager {
         return;
       }
 
-      const photoElement = document.querySelector(`[data-photo-id="${photoId}"]`);
-      if (photoElement) {
-        photoElement.remove();
-      }
-
       await this.loadUserPhotos();
       
     } catch (error) {
@@ -1053,19 +967,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // Make manager available globally
 window.ImageUploadManager = ImageUploadManager;
 
-// Test function
-window.testPhotoLoad = async function() {
-  console.log('🧪 Manual test photo load...');
-  if (window.uploadManager) {
-    await window.uploadManager.loadUserPhotos();
-  } else {
-    console.error('❌ uploadManager not found');
-  }
-};
-
-console.log('📸 Upload manager loaded. Test with: window.testPhotoLoad()');
-
-// Simple click-to-select for photos - works with existing bulk selection
+// Click-to-select functionality for edit mode
 document.addEventListener('click', function(e) {
   const photoItem = e.target.closest('.photo-item');
   if (!photoItem) return;
