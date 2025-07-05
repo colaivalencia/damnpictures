@@ -1243,13 +1243,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Copy your exact original wheel logic
+  // Remove the 0.5 multiplier - use full scroll values
   gallery.addEventListener('wheel', (e) => {
     e.preventDefault();
     
-    // Exactly like your original - simple conversion
     if (Math.abs(e.deltaX) < Math.abs(e.deltaY)) {
-      gallery.scrollLeft += e.deltaY * 0.5;
+      gallery.scrollLeft += e.deltaY; // No 0.5 multiplier
     } else {
       gallery.scrollLeft += e.deltaX;
     }
