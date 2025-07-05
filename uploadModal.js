@@ -29,6 +29,34 @@ class ImageUploadManager {
     this.createConfirmationModal();
     this.setupModalOpenListener();
     this.loadUserPhotos();
+    this.setupErrorSuppression();
+  }
+
+  setupErrorSuppression() {
+    // Suppress console spam from image loading errors
+    const originalConsoleError = console.error;
+    console.error = (...args) => {
+      const errorMessage = args.join(' ');
+      
+      // Filter out known image loading errors
+      if (errorMessage.includes('Failed to load resource') ||
+          errorMessage.includes('403') ||
+          errorMessage.includes('net::ERR_')) {
+        // Don't log these - they're handled by our error handlers
+        return;
+      }
+      
+      // Log everything else normally
+      originalConsoleError.apply(console, args);
+    };
+
+    // Also suppress network errors in the browser console
+    window.addEventListener('error', (e) => {
+      if (e.target && e.target.tagName === 'IMG') {
+        e.preventDefault(); // Suppress the error from appearing in console
+        return false;
+      }
+    }, true);
   }
 
   // Check if current user is a pro user
@@ -1020,25 +1048,49 @@ class ImageUploadManager {
 
   getOptimizedImageUrl(photo) {
     if (photo.drive_file_id) {
+      // Use the most reliable Google Drive URL format
       return `https://lh3.googleusercontent.com/d/${photo.drive_file_id}=w400-h400-c`;
     }
-    return photo.file_url;
+    return photo.file_url || '';
   }
 
   handleImageError(imgElement, driveFileId) {
+    // Prevent infinite retry loops by marking as attempted
+    if (imgElement.dataset.errorHandled) {
+      return;
+    }
+    imgElement.dataset.errorHandled = 'true';
+
     const fallbackUrls = [
       `https://drive.google.com/uc?export=view&id=${driveFileId}`,
       `https://lh3.googleusercontent.com/d/${driveFileId}=w400`,
-      `https://drive.google.com/thumbnail?id=${driveFileId}&sz=w400`,
-      `https://lh3.googleusercontent.com/d/${driveFileId}`
+      `https://drive.google.com/thumbnail?id=${driveFileId}&sz=w400`
     ];
 
     const currentSrc = imgElement.src;
-    const nextFallback = fallbackUrls.find(url => url !== currentSrc);
+    let nextFallback = null;
+    
+    // Find the next fallback URL that hasn't been tried
+    for (const url of fallbackUrls) {
+      if (url !== currentSrc && !imgElement.dataset.triedUrls?.includes(url)) {
+        nextFallback = url;
+        break;
+      }
+    }
 
     if (nextFallback) {
+      // Track which URLs we've tried
+      if (!imgElement.dataset.triedUrls) {
+        imgElement.dataset.triedUrls = currentSrc;
+      } else {
+        imgElement.dataset.triedUrls += ',' + currentSrc;
+      }
+      
+      console.log(`🔄 Retrying image load: ${driveFileId} with ${nextFallback}`);
       imgElement.src = nextFallback;
     } else {
+      // All fallbacks failed - show placeholder and stop trying
+      console.error(`❌ All image URLs failed for: ${driveFileId}`);
       imgElement.style.display = 'none';
       imgElement.parentElement.innerHTML = `
         <div style="
