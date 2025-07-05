@@ -1,13 +1,18 @@
-// Clean uploadModal.js with FIXED UI and edit modes
+// Clean uploadModal.js with FIXED UI and edit modes + Pro user support
 
 class ImageUploadManager {
   constructor() {
-    this.maxFileSize = 8 * 1024 * 1024; // 8MB like Discord
+    this.maxFileSize = 8 * 1024 * 1024; // 8MB for regular users
+    this.maxFileSizePro = 50 * 1024 * 1024; // 50MB for pro users
     this.compressionQuality = 0.8;
     this.maxDimension = 2048;
     this.selectedPhotos = new Set();
     this.pendingFiles = [];
     this.editMode = false;
+    
+    // Pro users who get higher limits and no compression
+    this.proUsers = ['eldricarpilleda', 'colai'];
+    
     this.init();
   }
 
@@ -24,6 +29,17 @@ class ImageUploadManager {
     this.createConfirmationModal();
     this.setupModalOpenListener();
     this.loadUserPhotos();
+  }
+
+  // Check if current user is a pro user
+  isProUser() {
+    const userProfile = window.getCurrentUserProfile();
+    return userProfile && this.proUsers.includes(userProfile.username);
+  }
+
+  // Get the appropriate file size limit for current user
+  getMaxFileSize() {
+    return this.isProUser() ? this.maxFileSizePro : this.maxFileSize;
   }
 
   setupModalOpenListener() {
@@ -197,12 +213,16 @@ class ImageUploadManager {
   async validateAndDisplayFiles(files) {
     const validFiles = [];
     const oversizedFiles = [];
+    const maxSize = this.getMaxFileSize();
+    const isPro = this.isProUser();
     
     for (const file of files) {
-      if (file.size > this.maxFileSize) {
+      if (file.size > maxSize) {
+        // File is over the limit - try compression
         try {
-          const compressedFile = await this.compressImage(file);
-          if (compressedFile.size <= this.maxFileSize) {
+          const targetSize = isPro ? this.maxFileSizePro : this.maxFileSize;
+          const compressedFile = await this.compressImage(file, targetSize);
+          if (compressedFile.size <= targetSize) {
             validFiles.push(compressedFile);
           } else {
             oversizedFiles.push(file);
@@ -211,13 +231,30 @@ class ImageUploadManager {
           oversizedFiles.push(file);
         }
       } else {
-        validFiles.push(file);
+        // File is within limits
+        if (isPro) {
+          // Pro users get no compression unless over limit
+          validFiles.push(file);
+        } else {
+          // Regular users get compression for consistency
+          if (file.size > this.maxFileSize) {
+            try {
+              const compressedFile = await this.compressImage(file, this.maxFileSize);
+              validFiles.push(compressedFile);
+            } catch (error) {
+              oversizedFiles.push(file);
+            }
+          } else {
+            validFiles.push(file);
+          }
+        }
       }
     }
 
     if (oversizedFiles.length > 0) {
       const oversizedNames = oversizedFiles.map(f => f.name).join(', ');
-      alert(`These files are too large and couldn't be compressed enough: ${oversizedNames}`);
+      const limitText = isPro ? '50MB' : '8MB';
+      alert(`These files are too large (over ${limitText}): ${oversizedNames}`);
     }
 
     if (validFiles.length > 0) {
@@ -230,7 +267,7 @@ class ImageUploadManager {
     }
   }
 
-  async compressImage(file) {
+  async compressImage(file, targetSize = this.maxFileSize) {
     return new Promise((resolve, reject) => {
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
@@ -242,7 +279,7 @@ class ImageUploadManager {
           canvas.width = width;
           canvas.height = height;
           ctx.drawImage(img, 0, 0, width, height);
-          this.compressWithQuality(canvas, file, resolve, reject);
+          this.compressWithQuality(canvas, file, resolve, reject, this.compressionQuality, targetSize);
         } catch (error) {
           reject(error);
         }
@@ -253,15 +290,15 @@ class ImageUploadManager {
     });
   }
 
-  compressWithQuality(canvas, originalFile, resolve, reject, quality = this.compressionQuality) {
+  compressWithQuality(canvas, originalFile, resolve, reject, quality = this.compressionQuality, targetSize = this.maxFileSize) {
     canvas.toBlob((blob) => {
       if (!blob) {
         reject(new Error('Compression failed'));
         return;
       }
 
-      if (blob.size > this.maxFileSize && quality > 0.1) {
-        this.compressWithQuality(canvas, originalFile, resolve, reject, quality - 0.1);
+      if (blob.size > targetSize && quality > 0.1) {
+        this.compressWithQuality(canvas, originalFile, resolve, reject, quality - 0.1, targetSize);
         return;
       }
 
