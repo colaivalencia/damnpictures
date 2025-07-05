@@ -1232,37 +1232,24 @@ window.modalStabilityManager = modalStabilityManager;
 // Enhanced scrolling - add to end of script.js
 document.addEventListener('DOMContentLoaded', () => {
   const gallery = document.getElementById('gallery');
-  let isScrolling = false;
   
   // Arrow key navigation
   document.addEventListener('keydown', (e) => {
     if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
       e.preventDefault();
-      
-      if (isScrolling) return;
-      isScrolling = true;
-      
       const scrollAmount = e.key === 'ArrowRight' ? 
         window.innerWidth * 0.8 : -window.innerWidth * 0.8;
-      
-      gallery.scrollBy({
-        left: scrollAmount,
-        behavior: 'smooth'
-      });
-      
-      setTimeout(() => { isScrolling = false; }, 300);
+      gallery.scrollLeft += scrollAmount;
     }
   });
 
-  // Convert vertical scroll to horizontal (like your original)
+  // Keep your original wheel behavior exactly - no preventDefault, no smooth scrolling
   gallery.addEventListener('wheel', (e) => {
-    e.preventDefault();
-    
-    // Convert vertical scroll to horizontal like original
+    // Convert vertical scroll to horizontal exactly like your original
     if (Math.abs(e.deltaX) < Math.abs(e.deltaY)) {
-      gallery.scrollLeft += e.deltaY * 0.5;
+      gallery.scrollLeft += e.deltaY;
     } else {
       gallery.scrollLeft += e.deltaX;
     }
-  }, { passive: false });
+  });
 });
