@@ -1229,35 +1229,3 @@ document.addEventListener('DOMContentLoaded', () => {
 // Export for use in other modules
 window.modalStabilityManager = modalStabilityManager;
 
-// Enhanced scrolling - add to end of script.js
-document.addEventListener('DOMContentLoaded', () => {
-  const gallery = document.getElementById('gallery');
-  
-  // Arrow key navigation
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
-      e.preventDefault();
-      const scrollAmount = e.key === 'ArrowRight' ? 
-        window.innerWidth * 0.8 : -window.innerWidth * 0.8;
-      gallery.scrollLeft += scrollAmount;
-    }
-  });
-
-  gallery.addEventListener('wheel', (e) => {
-    e.preventDefault();
-    
-    if (Math.abs(e.deltaX) < Math.abs(e.deltaY)) {
-      // Vertical scroll - convert to horizontal with acceleration
-      const isTraditionalWheel = Math.abs(e.deltaY) > 50 || e.deltaMode === 1;
-      
-      if (isTraditionalWheel) {
-        gallery.scrollLeft += e.deltaY * 3; // Traditional wheel acceleration
-      } else {
-        gallery.scrollLeft += e.deltaY * 0.5; // Trackpad - your original multiplier
-      }
-    } else {
-      // Horizontal scroll - EXACTLY like your original
-      gallery.scrollLeft += e.deltaX;
-    }
-  }, { passive: false });
-});
