@@ -1243,19 +1243,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Isolate scroll directions - only respond to the dominant direction
+  // Simple direction detection - respond immediately to primary direction
   gallery.addEventListener('wheel', (e) => {
-    const absX = Math.abs(e.deltaX);
-    const absY = Math.abs(e.deltaY);
-    
-    // Only respond if one direction is clearly dominant (3:1 ratio)
-    if (absX > absY * 3) {
-      // Primarily horizontal - use horizontal delta
-      gallery.scrollLeft += e.deltaX;
-    } else if (absY > absX * 3) {
-      // Primarily vertical - convert to horizontal
+    if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+      // Vertical scroll - convert to horizontal
       gallery.scrollLeft += e.deltaY;
+    } else {
+      // Horizontal scroll - use as is
+      gallery.scrollLeft += e.deltaX;
     }
-    // Ignore diagonal/mixed scrolling
   });
 });
