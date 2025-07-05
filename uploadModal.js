@@ -972,12 +972,15 @@ class ImageUploadManager {
           console.log(`🗑️ Deleting from Google Drive: ${driveFileId}`);
           
           try {
-            const driveResponse = await fetch('/api/delete-from-drive', {
+            const driveResponse = await fetch('/.netlify/functions/upload-to-drive', {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
               },
-              body: JSON.stringify({ fileId: driveFileId })
+              body: JSON.stringify({ 
+                action: 'delete',
+                fileId: driveFileId 
+              })
             });
 
             if (!driveResponse.ok) {
@@ -1121,12 +1124,15 @@ class ImageUploadManager {
       if (driveFileId) {
         console.log('🗑️ Deleting from Google Drive:', driveFileId);
         
-        const driveResponse = await fetch('/api/delete-from-drive', {
+        const driveResponse = await fetch('/.netlify/functions/upload-to-drive', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ fileId: driveFileId })
+          body: JSON.stringify({ 
+            action: 'delete',
+            fileId: driveFileId 
+          })
         });
 
         if (!driveResponse.ok) {
