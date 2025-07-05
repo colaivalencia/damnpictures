@@ -861,3 +861,370 @@ document.addEventListener('DOMContentLoaded', () => {
 // Export for other modules
 window.AuthManager = AuthManager;
 window.HeaderMenuManager = HeaderMenuManager;
+
+// Modal Stability Fixes - Add this to your main script.js or create a separate file
+
+class ModalStabilityManager {
+  constructor() {
+    this.activeModals = new Set();
+    this.isInitialized = false;
+    this.sessionCheckInterval = null;
+    this.lastActivity = Date.now();
+    this.init();
+  }
+
+  init() {
+    if (this.isInitialized) return;
+    
+    this.setupGlobalEventHandlers();
+    this.setupSessionManagement();
+    this.setupActivityTracking();
+    this.isInitialized = true;
+  }
+
+  setupGlobalEventHandlers() {
+    // Prevent accidental modal closure from background clicks
+    document.addEventListener('click', (e) => {
+      // Only close modal if clicking directly on the modal backdrop, not its children
+      if (e.target.classList.contains('modal') && !e.target.closest('.modal-content')) {
+        // Add a small delay to prevent accidental closure
+        setTimeout(() => {
+          if (e.target.classList.contains('modal')) {
+            this.closeModal(e.target.id);
+          }
+        }, 100);
+      }
+    }, { passive: true });
+
+    // Improved escape key handling
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && this.activeModals.size > 0) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        // Only close if no input is focused (prevent closing while typing)
+        const activeElement = document.activeElement;
+        if (!activeElement || !['INPUT', 'TEXTAREA', 'SELECT'].includes(activeElement.tagName)) {
+          const lastModal = Array.from(this.activeModals).pop();
+          if (lastModal) {
+            this.closeModal(lastModal);
+          }
+        }
+      }
+    });
+
+    // Prevent form submissions from causing issues
+    document.addEventListener('submit', (e) => {
+      const form = e.target;
+      if (form && form.closest('.modal')) {
+        e.preventDefault();
+        // Let the specific form handlers deal with it
+      }
+    });
+
+    // Handle window blur/focus to prevent session issues
+    let wasHidden = false;
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        wasHidden = true;
+      } else if (wasHidden) {
+        // Page became visible again - refresh session if needed
+        setTimeout(() => {
+          this.checkAndRefreshSession();
+        }, 1000);
+        wasHidden = false;
+      }
+    });
+  }
+
+  setupSessionManagement() {
+    // Check session validity every 5 minutes
+    this.sessionCheckInterval = setInterval(() => {
+      this.checkAndRefreshSession();
+    }, 5 * 60 * 1000);
+
+    // Refresh session token every 30 minutes
+    setInterval(() => {
+      this.refreshSessionToken();
+    }, 30 * 60 * 1000);
+  }
+
+  setupActivityTracking() {
+    // Track user activity to prevent unnecessary logouts
+    const activities = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
+    
+    const updateActivity = () => {
+      this.lastActivity = Date.now();
+    };
+
+    activities.forEach(event => {
+      document.addEventListener(event, updateActivity, { passive: true });
+    });
+  }
+
+  async checkAndRefreshSession() {
+    if (!window.supabase) return;
+
+    try {
+      const { data: { session }, error } = await window.supabase.auth.getSession();
+      
+      if (error) {
+        console.warn('Session check error:', error);
+        return;
+      }
+
+      if (!session) {
+        // Session expired - handle gracefully
+        this.handleSessionExpired();
+        return;
+      }
+
+      // Check if session is about to expire (within 5 minutes)
+      const expiresAt = new Date(session.expires_at * 1000);
+      const now = new Date();
+      const minutesUntilExpiry = (expiresAt - now) / (1000 * 60);
+
+      if (minutesUntilExpiry < 5) {
+        await this.refreshSessionToken();
+      }
+    } catch (error) {
+      console.warn('Session management error:', error);
+    }
+  }
+
+  async refreshSessionToken() {
+    if (!window.supabase) return;
+
+    try {
+      const { data, error } = await window.supabase.auth.refreshSession();
+      
+      if (error) {
+        console.warn('Token refresh error:', error);
+        // Don't automatically log out on refresh errors
+        return;
+      }
+
+      if (data?.session) {
+        console.log('Session refreshed successfully');
+      }
+    } catch (error) {
+      console.warn('Token refresh exception:', error);
+    }
+  }
+
+  handleSessionExpired() {
+    // Only handle if user was recently active (within last 30 minutes)
+    const timeSinceActivity = Date.now() - this.lastActivity;
+    const thirtyMinutes = 30 * 60 * 1000;
+
+    if (timeSinceActivity < thirtyMinutes) {
+      // User was recently active - show gentle notification instead of immediate logout
+      this.showSessionExpiredNotification();
+    } else {
+      // User has been inactive - silent logout is okay
+      this.performSilentLogout();
+    }
+  }
+
+  showSessionExpiredNotification() {
+    // Close any open modals first
+    this.closeAllModals();
+
+    // Show a non-intrusive notification
+    const notification = document.createElement('div');
+    notification.id = 'sessionExpiredNotification';
+    notification.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: #ff6b6b;
+      color: white;
+      padding: 16px 20px;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      z-index: 10000;
+      font-size: 14px;
+      max-width: 300px;
+      line-height: 1.4;
+    `;
+    notification.innerHTML = `
+      <div style="margin-bottom: 8px;">Your session has expired</div>
+      <button onclick="window.location.reload()" style="
+        background: white;
+        color: #ff6b6b;
+        border: none;
+        padding: 6px 12px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 12px;
+        font-weight: bold;
+      ">Refresh Page</button>
+    `;
+
+    document.body.appendChild(notification);
+
+    // Auto-remove after 10 seconds
+    setTimeout(() => {
+      if (notification.parentNode) {
+        notification.remove();
+      }
+    }, 10000);
+  }
+
+  performSilentLogout() {
+    // Clear local state
+    if (window.supabase) {
+      window.supabase.auth.signOut();
+    }
+    
+    // Reset UI state
+    this.closeAllModals();
+    
+    // Trigger UI updates
+    if (window.updateLoginState) {
+      window.updateLoginState();
+    }
+  }
+
+  // Modal management methods
+  openModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (!modal) return false;
+
+    // Prevent the modal from being added multiple times
+    if (this.activeModals.has(modalId)) return true;
+
+    this.activeModals.add(modalId);
+    modal.classList.remove('hidden');
+    
+    // Focus management
+    setTimeout(() => {
+      const firstInput = modal.querySelector('input, button, textarea, select');
+      if (firstInput && firstInput.focus) {
+        firstInput.focus();
+      }
+    }, 100);
+
+    return true;
+  }
+
+  closeModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (!modal) return false;
+
+    this.activeModals.delete(modalId);
+    modal.classList.add('hidden');
+
+    // Clear any form data to prevent state issues
+    const forms = modal.querySelectorAll('form');
+    forms.forEach(form => {
+      if (form.reset) {
+        form.reset();
+      }
+    });
+
+    // Clear error messages
+    const errorElements = modal.querySelectorAll('.error-message, .field-error');
+    errorElements.forEach(el => {
+      el.textContent = '';
+      el.style.display = 'none';
+    });
+
+    return true;
+  }
+
+  closeAllModals() {
+    const modals = Array.from(this.activeModals);
+    modals.forEach(modalId => {
+      this.closeModal(modalId);
+    });
+  }
+
+  // Method to check if any modal is currently open
+  hasOpenModals() {
+    return this.activeModals.size > 0;
+  }
+
+  // Cleanup method
+  destroy() {
+    if (this.sessionCheckInterval) {
+      clearInterval(this.sessionCheckInterval);
+    }
+    this.activeModals.clear();
+    this.isInitialized = false;
+  }
+}
+
+// Initialize the modal stability manager
+const modalStabilityManager = new ModalStabilityManager();
+
+// Override existing modal functions to use the stability manager
+window.openModal = function(modalId) {
+  return modalStabilityManager.openModal(modalId);
+};
+
+window.closeModal = function(modalId) {
+  return modalStabilityManager.closeModal(modalId);
+};
+
+// Enhanced click handlers that prevent event bubbling issues
+function createSafeClickHandler(callback) {
+  return function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // Debounce rapid clicks
+    if (this.lastClick && Date.now() - this.lastClick < 300) {
+      return;
+    }
+    this.lastClick = Date.now();
+    
+    // Call the original callback
+    if (typeof callback === 'function') {
+      callback.call(this, e);
+    }
+  };
+}
+
+// Apply safe click handlers to all modal close buttons
+document.addEventListener('DOMContentLoaded', () => {
+  // Wait a bit for other scripts to load
+  setTimeout(() => {
+    const closeButtons = document.querySelectorAll('.close-btn, .modal .close-btn');
+    closeButtons.forEach(button => {
+      const modalId = button.closest('.modal')?.id;
+      if (modalId) {
+        // Remove existing listeners and add safe one
+        const newButton = button.cloneNode(true);
+        button.parentNode.replaceChild(newButton, button);
+        
+        newButton.addEventListener('click', createSafeClickHandler(() => {
+          modalStabilityManager.closeModal(modalId);
+        }));
+      }
+    });
+
+    // Apply to specific modal buttons
+    const modalButtons = [
+      { id: 'closeModal', modal: 'loginModal' },
+      { id: 'closeSignupModal', modal: 'signupModal' },
+      { id: 'closeUploadModal', modal: 'uploadModal' }
+    ];
+
+    modalButtons.forEach(({ id, modal }) => {
+      const button = document.getElementById(id);
+      if (button) {
+        // Remove existing listeners
+        const newButton = button.cloneNode(true);
+        button.parentNode.replaceChild(newButton, button);
+        
+        newButton.addEventListener('click', createSafeClickHandler(() => {
+          modalStabilityManager.closeModal(modal);
+        }));
+      }
+    });
+  }, 1000);
+});
+
+// Export for use in other modules
+window.modalStabilityManager = modalStabilityManager;
