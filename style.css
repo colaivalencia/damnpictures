@@ -1,4 +1,8 @@
-/* === Base Reset === */
+/* ==============================================
+   DAMNPICTURES - CLEANED UP STYLES
+   ============================================== */
+
+/* === BASE RESET & TYPOGRAPHY === */
 body {
   margin: 0;
   background: white;
@@ -7,7 +11,7 @@ body {
   overflow-y: hidden;
 }
 
-/* === Scroll Gallery === */
+/* === MAIN GALLERY SCROLL CONTAINER === */
 .scroll-container {
   display: flex;
   flex-direction: row;
@@ -18,14 +22,17 @@ body {
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
 }
+
 .scroll-container::-webkit-scrollbar {
   display: none;
 }
+
 .slide {
   flex: 0 0 auto;
   height: 100vh;
   position: relative;
 }
+
 .slide img {
   height: 100%;
   width: auto;
@@ -34,16 +41,15 @@ body {
   object-position: center;
 }
 
-/* === Sidebar Label === */
+/* === HEADER MENU SYSTEM === */
 .sidebar-container {
   position: fixed;
   top: 0;
   left: 0;
-  z-index: 10;
+  z-index: 100;
   pointer-events: none;
 }
 
-/* === Enhanced Header Menu Styles === */
 .header-menu {
   pointer-events: auto;
   font-weight: bold;
@@ -54,18 +60,26 @@ body {
   cursor: pointer;
   user-select: none;
   position: relative;
+  transition: all 0.2s ease;
+}
+
+.header-menu:focus {
+  outline: 2px solid rgba(102, 126, 234, 0.5);
+  outline-offset: 2px;
+  border-radius: 4px;
 }
 
 /* Primary and hover labels */
 .primary-label {
   display: block;
+  transition: opacity 0.2s ease;
 }
 
 .hover-label {
   display: none;
+  transition: opacity 0.2s ease;
 }
 
-/* Show hover label on hover */
 .header-menu:hover .primary-label {
   display: none;
 }
@@ -84,14 +98,17 @@ body {
   color: white;
   mix-blend-mode: difference;
   display: none;
+  opacity: 0;
+  transform: translateY(-8px);
+  transition: all 0.2s ease;
 }
 
-/* Show submenu on hover - only for logged in users */
 .header-menu.logged-in:hover .submenu {
   display: block;
+  opacity: 1;
+  transform: translateY(0);
 }
 
-/* Submenu items */
 .submenu-item {
   display: block;
   color: white;
@@ -105,17 +122,14 @@ body {
   mix-blend-mode: difference;
   margin: 0;
   text-align: left;
+  transition: transform 0.2s ease;
 }
 
-/* Focus states for accessibility */
-.header-menu:focus {
-  outline: 2px solid rgba(102, 126, 234, 0.5);
-  outline-offset: 2px;
+.submenu-item:hover {
+  transform: translateX(4px);
 }
 
-/* === NEW MODAL DESIGN === */
-
-/* === Modal Base === */
+/* === MODAL SYSTEM === */
 .modal {
   position: fixed;
   top: 0;
@@ -129,13 +143,25 @@ body {
   background: rgba(0, 0, 0, 0.75);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
+  animation: modalBackdropIn 0.3s ease-out;
 }
 
 .modal.hidden {
   display: none;
 }
 
-/* === Modal Content === */
+@keyframes modalBackdropIn {
+  from {
+    opacity: 0;
+    backdrop-filter: blur(0px);
+  }
+  to {
+    opacity: 1;
+    backdrop-filter: blur(20px);
+  }
+}
+
+/* === MODAL CONTENT === */
 .modal-content {
   background: linear-gradient(145deg, #1a1a1a, #0f0f0f);
   border: 1px solid #333;
@@ -149,21 +175,20 @@ body {
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  animation: modalIn 0.3s ease-out;
+  animation: modalContentIn 0.3s ease-out;
 }
 
-/* Upload modal specific sizing */
+/* Upload modal sizing */
 #uploadModal .modal-content {
   width: min(90vw, 900px);
 }
 
-/* Upload confirmation modal specific sizing */
 #uploadConfirmModal .modal-content {
   width: min(90vw, 700px);
   max-height: 80vh;
 }
 
-@keyframes modalIn {
+@keyframes modalContentIn {
   from {
     opacity: 0;
     transform: translateY(-20px) scale(0.95);
@@ -174,7 +199,7 @@ body {
   }
 }
 
-/* === Modal Header === */
+/* === MODAL HEADER === */
 .modal-header {
   padding: 20px 24px 16px;
   display: flex;
@@ -225,9 +250,10 @@ body {
 .close-btn:hover {
   background: rgba(255, 255, 255, 0.08);
   color: rgba(255, 255, 255, 0.8);
+  transform: scale(1.1);
 }
 
-/* === Modal Body === */
+/* === MODAL BODY === */
 .modal-body {
   padding: 20px 24px;
   overflow-y: auto;
@@ -251,7 +277,7 @@ body {
   background: #555;
 }
 
-/* === User Info Box === */
+/* === USER INFO SECTION === */
 .user-info {
   display: flex;
   align-items: center;
@@ -270,6 +296,11 @@ body {
   font-weight: bold;
   font-size: 14px;
   color: white;
+  transition: transform 0.2s ease;
+}
+
+.user-avatar:hover {
+  transform: scale(1.05);
 }
 
 .username {
@@ -279,24 +310,7 @@ body {
   margin: 0;
 }
 
-.logout-btn {
-  background: none;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: rgba(255, 255, 255, 0.7);
-  padding: 6px 12px;
-  border-radius: 6px;
-  font-size: 12px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  font-weight: 500;
-}
-
-.logout-btn:hover {
-  border-color: #ff4757;
-  color: #ff4757;
-}
-
-/* === Forms === */
+/* === FORM COMPONENTS === */
 .modal-form {
   display: flex;
   flex-direction: column;
@@ -319,16 +333,15 @@ body {
 
 .form-group input {
   width: 100%;
-  padding: 6px 12px;
+  padding: 12px 16px;
   font-size: 14px;
-  border-radius: 4px;
+  border-radius: 6px;
   border: 1px solid rgba(255, 255, 255, 0.12);
   background: rgba(255, 255, 255, 0.04);
   color: white;
   font-family: inherit;
   transition: all 0.2s ease;
   letter-spacing: -0.01em;
-  height: 36px;
   box-sizing: border-box;
 }
 
@@ -338,29 +351,35 @@ body {
 
 .form-group input:focus {
   outline: none;
-  border-color: rgba(102, 126, 234, 0.4);
+  border-color: rgba(102, 126, 234, 0.5);
   background: rgba(255, 255, 255, 0.06);
   box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.08);
+  transform: translateY(-1px);
 }
 
+.form-group input.error {
+  border-color: #ff4757;
+  background: rgba(255, 71, 87, 0.05);
+}
+
+/* === BUTTONS === */
 .primary-btn {
   width: 100%;
-  padding: 8px 20px;
+  padding: 12px 20px;
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-  border-radius: 4px;
+  border-radius: 6px;
   border: none;
   font-family: inherit;
   transition: all 0.2s ease;
   letter-spacing: -0.01em;
   background: linear-gradient(135deg, #667eea, #764ba2);
   color: white;
-  height: 36px;
   box-sizing: border-box;
 }
 
-.primary-btn:hover {
+.primary-btn:hover:not(:disabled) {
   transform: translateY(-2px);
   box-shadow: 0 8px 24px rgba(102, 126, 234, 0.3);
 }
@@ -371,25 +390,26 @@ body {
   transform: none;
 }
 
-/* === Secondary Button === */
 .secondary-btn {
   background: transparent;
   color: rgba(255, 255, 255, 0.7);
   border: 1px solid rgba(255, 255, 255, 0.2);
   padding: 12px 24px;
-  border-radius: 8px;
+  border-radius: 6px;
   font-weight: 600;
   cursor: pointer;
   font-size: 14px;
   transition: all 0.2s ease;
+  font-family: inherit;
 }
 
 .secondary-btn:hover {
   border-color: rgba(255, 255, 255, 0.4);
   color: rgba(255, 255, 255, 0.9);
+  transform: translateY(-1px);
 }
 
-/* === Divider === */
+/* === DIVIDERS & SEPARATORS === */
 .divider {
   display: flex;
   align-items: center;
@@ -416,19 +436,12 @@ body {
   font-weight: 500;
 }
 
-/* === Signup + Third Party Buttons === */
+/* === LINKS & SIGNUP === */
 .signup-link {
   text-align: center;
   margin-top: 0;
   font-size: 14px;
-  color: #667eea;
-  text-decoration: underline;
-  cursor: pointer;
   transition: all 0.2s ease;
-}
-
-.signup-link:hover {
-  color: #764ba2;
 }
 
 .signup-text {
@@ -451,29 +464,7 @@ body {
   text-decoration: underline;
 }
 
-.third-party-buttons {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.third-party {
-  background: rgba(255, 255, 255, 0.04);
-  color: white;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  padding: 12px 16px;
-  font-size: 14px;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.third-party:hover {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.2);
-}
-
-/* === Upload Section === */
+/* === UPLOAD SECTION === */
 .upload-section {
   background: rgba(255, 255, 255, 0.02);
   border: 2px dashed rgba(255, 255, 255, 0.1);
@@ -497,6 +488,7 @@ body {
 .upload-section.drag-over {
   border-color: rgba(102, 126, 234, 0.5);
   background: rgba(102, 126, 234, 0.05);
+  transform: scale(1.02);
 }
 
 .upload-section.has-files {
@@ -508,7 +500,7 @@ body {
   color: #28a745;
 }
 
-/* Upload dropzone - clickable area */
+/* Upload dropzone */
 .upload-dropzone {
   cursor: pointer;
   pointer-events: auto;
@@ -516,6 +508,7 @@ body {
   border-radius: 8px;
   transition: all 0.2s ease;
   position: relative;
+  width: 100%;
 }
 
 .upload-dropzone:hover {
@@ -527,6 +520,7 @@ body {
   opacity: 0.6;
   pointer-events: none;
   margin-bottom: 16px;
+  transition: all 0.2s ease;
 }
 
 .upload-text {
@@ -535,6 +529,7 @@ body {
   pointer-events: none;
   margin-bottom: 8px;
   font-weight: 600;
+  transition: color 0.2s ease;
 }
 
 .upload-text.has-files {
@@ -548,6 +543,7 @@ body {
   pointer-events: none;
   margin-bottom: 20px;
   line-height: 1.4;
+  transition: all 0.2s ease;
 }
 
 .upload-subtext.has-files {
@@ -570,7 +566,7 @@ body {
   z-index: 2;
 }
 
-/* === Button Container Layout === */
+/* === UPLOAD BUTTONS === */
 .upload-btn-container {
   display: flex;
   gap: 12px;
@@ -579,7 +575,6 @@ body {
   flex-wrap: wrap;
 }
 
-/* === Upload Buttons === */
 .upload-btn {
   background: transparent;
   color: #667eea;
@@ -594,6 +589,7 @@ body {
   min-width: 140px;
   pointer-events: auto;
   font-size: 14px;
+  font-family: inherit;
 }
 
 .upload-btn:hover:not(:disabled) {
@@ -612,19 +608,6 @@ body {
   color: #555;
 }
 
-.upload-btn.review-mode {
-  background: transparent !important;
-  color: #667eea !important;
-  border: 2px solid #667eea !important;
-}
-
-.upload-btn.review-mode:hover:not(:disabled) {
-  background: rgba(102, 126, 234, 0.1) !important;
-  border-color: #5a67d8 !important;
-  color: #5a67d8 !important;
-}
-
-/* === Quick Upload Button (Primary) === */
 .quick-upload-btn {
   background: linear-gradient(135deg, #667eea, #764ba2);
   color: white;
@@ -639,6 +622,7 @@ body {
   min-width: 140px;
   pointer-events: auto;
   font-size: 14px;
+  font-family: inherit;
   display: none;
 }
 
@@ -655,7 +639,7 @@ body {
   background: #555;
 }
 
-/* === Upload Progress Bar === */
+/* === PROGRESS BAR === */
 .upload-progress {
   width: 100%;
   height: 4px;
@@ -674,16 +658,9 @@ body {
   width: 0%;
 }
 
-/* === Photos Section === */
+/* === PHOTOS MANAGEMENT === */
 .photos-section {
   margin-top: 24px;
-}
-
-.photos-section h3 {
-  font-size: 18px;
-  font-weight: 600;
-  margin: 0 0 20px 0;
-  color: #ffffff;
 }
 
 .section-title {
@@ -691,52 +668,6 @@ body {
   font-weight: 600;
   margin: 0 0 20px 0;
   color: #ffffff;
-}
-
-/* === Edit Mode Controls === */
-.edit-controls {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 16px 20px;
-  background: rgba(255, 255, 255, 0.02);
-  border-radius: 8px;
-  margin-bottom: 20px;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  grid-column: 1 / -1;
-}
-
-.edit-controls h3 {
-  margin: 0;
-  color: #fff;
-  font-size: 18px;
-  font-weight: 600;
-}
-
-.edit-toggle-btn {
-  background: transparent !important;
-  color: #667eea !important;
-  border: 1px solid #667eea !important;
-  padding: 8px 16px !important;
-  border-radius: 6px !important;
-  font-size: 14px !important;
-  font-weight: 500 !important;
-  cursor: pointer !important;
-  transition: all 0.2s ease !important;
-}
-
-.edit-toggle-btn:hover {
-  background: rgba(102, 126, 234, 0.1) !important;
-}
-
-.edit-toggle-btn.cancel-mode {
-  background: #ff4757 !important;
-  border-color: #ff4757 !important;
-  color: white !important;
-}
-
-.edit-toggle-btn.cancel-mode:hover {
-  background: #ff3742 !important;
 }
 
 .photos-grid {
@@ -767,10 +698,6 @@ body {
   height: 100%;
   object-fit: cover;
   transition: all 0.2s ease;
-  /* Optimize for faster loading */
-  image-rendering: auto;
-  image-rendering: crisp-edges;
-  image-rendering: -webkit-optimize-contrast;
 }
 
 .photo-overlay {
@@ -812,7 +739,7 @@ body {
   transform: scale(1.1);
 }
 
-/* === Bulk Selection Styles === */
+/* === BULK SELECTION === */
 .bulk-actions {
   display: flex;
   align-items: center;
@@ -866,7 +793,6 @@ body {
 .delete-selected-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
-  pointer-events: none;
 }
 
 .photo-checkbox {
@@ -886,6 +812,7 @@ body {
   border-radius: 3px;
 }
 
+/* === EMPTY STATES === */
 .empty-state {
   text-align: center;
   padding: 40px 20px;
@@ -899,7 +826,7 @@ body {
   opacity: 0.3;
 }
 
-/* === Upload Confirmation Modal === */
+/* === UPLOAD CONFIRMATION MODAL === */
 #confirmPhotoGrid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
@@ -989,7 +916,6 @@ body {
   text-overflow: ellipsis;
 }
 
-/* === Confirmation Modal Actions === */
 .confirmation-actions {
   display: flex;
   gap: 12px;
@@ -1004,48 +930,7 @@ body {
   flex: 2;
 }
 
-/* === Modal Animations === */
-#uploadConfirmModal {
-  animation: fadeIn 0.2s ease-out;
-}
-
-#uploadConfirmModal .modal-content {
-  animation: slideIn 0.3s ease-out;
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-@keyframes slideIn {
-  from { 
-    opacity: 0;
-    transform: translateY(-20px) scale(0.95);
-  }
-  to { 
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-/* === Loading State for Images === */
-.photo-item img[src=""] {
-  background: rgba(255, 255, 255, 0.03);
-  position: relative;
-}
-
-.photo-item img[src=""]:before {
-  content: "📷";
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  font-size: 2rem;
-  color: #666;
-}
-
-/* === Error Messages === */
+/* === ERROR & SUCCESS MESSAGES === */
 .error-message {
   background: rgba(255, 71, 87, 0.1);
   border: 1px solid #ff4757;
@@ -1055,4 +940,141 @@ body {
   font-size: 14px;
   margin-bottom: 16px;
   display: none;
+}
+
+.error-message.show {
+  display: block;
+  animation: messageSlideIn 0.3s ease-out;
+}
+
+.success-message {
+  background: rgba(40, 167, 69, 0.1);
+  border: 1px solid #28a745;
+  color: #28a745;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  margin-bottom: 16px;
+  display: none;
+}
+
+.success-message.show {
+  display: block;
+  animation: messageSlideIn 0.3s ease-out;
+}
+
+.field-error {
+  color: #ff4757;
+  font-size: 12px;
+  margin-top: 4px;
+  display: none;
+  opacity: 0;
+  transform: translateY(-4px);
+  transition: all 0.2s ease;
+}
+
+.field-error.show {
+  display: block;
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.validation-status {
+  font-size: 12px;
+  margin-top: 4px;
+  opacity: 0;
+  transform: translateY(-4px);
+  transition: all 0.2s ease;
+}
+
+.validation-status.checking {
+  color: #667eea;
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.validation-status.available {
+  color: #28a745;
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.validation-status.taken {
+  color: #ff4757;
+  opacity: 1;
+  transform: translateY(0);
+}
+
+@keyframes messageSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* === RESPONSIVE DESIGN === */
+@media (max-width: 768px) {
+  .modal-content {
+    width: 95vw;
+    margin: 10px;
+  }
+  
+  #uploadModal .modal-content,
+  #uploadConfirmModal .modal-content {
+    width: 95vw;
+    max-height: 90vh;
+  }
+  
+  .modal-header {
+    padding: 16px 20px 12px;
+  }
+  
+  .modal-body {
+    padding: 16px 20px;
+  }
+  
+  .upload-section {
+    padding: 24px 16px;
+  }
+  
+  .photos-grid {
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 12px;
+  }
+  
+  .upload-btn-container {
+    flex-direction: column;
+    width: 100%;
+  }
+  
+  .upload-btn,
+  .quick-upload-btn {
+    width: 100%;
+    min-width: auto;
+  }
+}
+
+@media (max-width: 480px) {
+  .header-menu {
+    font-size: 1.1rem;
+    padding: 0.8rem;
+  }
+  
+  .modal-title {
+    font-size: 20px;
+  }
+  
+  .photos-grid {
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 10px;
+  }
+  
+  #confirmPhotoGrid {
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 12px;
+  }
 }
