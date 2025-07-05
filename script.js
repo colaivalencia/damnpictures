@@ -1234,7 +1234,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const gallery = document.getElementById('gallery');
   let isScrolling = false;
   
-  // Arrow key navigation only
+  // Arrow key navigation
   document.addEventListener('keydown', (e) => {
     if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
       e.preventDefault();
@@ -1254,25 +1254,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Enhanced mousewheel - ONLY for traditional scroll wheels doing vertical scroll
+  // Convert vertical scroll to horizontal (like your original)
   gallery.addEventListener('wheel', (e) => {
-    // Only intercept vertical scrolling on traditional wheels
-    const isVerticalTraditionalWheel = Math.abs(e.deltaY) > 100 && Math.abs(e.deltaX) < 10 && e.deltaMode === 0;
+    e.preventDefault();
     
-    if (isVerticalTraditionalWheel && !isScrolling) {
-      e.preventDefault(); // Only prevent when we're handling it
-      isScrolling = true;
-      
-      const scrollAmount = e.deltaY > 0 ? 
-        window.innerWidth * 0.8 : -window.innerWidth * 0.8;
-      
-      gallery.scrollBy({
-        left: scrollAmount,
-        behavior: 'smooth'
-      });
-      
-      setTimeout(() => { isScrolling = false; }, 300);
+    // Convert vertical scroll to horizontal like original
+    if (Math.abs(e.deltaX) < Math.abs(e.deltaY)) {
+      gallery.scrollLeft += e.deltaY * 0.5;
+    } else {
+      gallery.scrollLeft += e.deltaX;
     }
-    // All other scrolling (horizontal, trackpad, etc.) works normally
   }, { passive: false });
 });
