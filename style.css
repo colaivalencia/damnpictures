@@ -688,7 +688,7 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
-/* Normal view mode hover */
+/* Normal view mode hover - CLEAN, no delete buttons */
 .photo-item:hover {
   transform: scale(1.05);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
@@ -707,11 +707,6 @@ body {
   transform: scale(0.95);
   box-shadow: 0 0 0 3px #667eea, 0 8px 24px rgba(102, 126, 234, 0.4);
   border-color: #667eea;
-}
-
-.photo-item.selected .photo-overlay {
-  opacity: 0.3 !important;
-  background: rgba(102, 126, 234, 0.4);
 }
 
 .photo-item img {
@@ -733,13 +728,15 @@ body {
   justify-content: center;
   opacity: 0;
   transition: all 0.2s ease;
+  pointer-events: none;
 }
 
-.photo-item:hover .photo-overlay {
-  opacity: 1;
+/* NEVER show overlay in normal mode - always hidden */
+.photo-overlay {
+  display: none !important;
 }
 
-/* Hide delete overlay in edit mode */
+/* Only show delete overlay in edit mode - but we're not using it anyway */
 .photos-grid.edit-mode .photo-overlay {
   display: none !important;
 }
