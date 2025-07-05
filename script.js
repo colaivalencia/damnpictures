@@ -1232,36 +1232,47 @@ window.modalStabilityManager = modalStabilityManager;
 // Enhanced scrolling - add to end of script.js
 document.addEventListener('DOMContentLoaded', () => {
   const gallery = document.getElementById('gallery');
+  let isScrolling = false;
   
   // Arrow key navigation
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'ArrowLeft') {
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
       e.preventDefault();
-      gallery.scrollLeft -= window.innerWidth * 0.8;
-    } else if (e.key === 'ArrowRight') {
-      e.preventDefault();
-      gallery.scrollLeft += window.innerWidth * 0.8;
+      
+      if (isScrolling) return;
+      isScrolling = true;
+      
+      const scrollAmount = e.key === 'ArrowRight' ? 
+        window.innerWidth * 0.8 : -window.innerWidth * 0.8;
+      
+      gallery.scrollBy({
+        left: scrollAmount,
+        behavior: 'smooth'
+      });
+      
+      setTimeout(() => { isScrolling = false; }, 300);
     }
   });
 
-  // Enhanced mousewheel - detect traditional scroll wheels vs trackpads
+  // Enhanced mousewheel - only for traditional scroll wheels
   gallery.addEventListener('wheel', (e) => {
-    e.preventDefault();
+    // Only intercept if it's a traditional scroll wheel
+    const isTraditionalWheel = Math.abs(e.deltaY) > 100 && e.deltaMode === 0;
     
-    // Traditional scroll wheel detection
-    const isTraditionalWheel = Math.abs(e.deltaY) > 50 || e.deltaMode === 1;
-    
-    if (isTraditionalWheel) {
-      // Big scroll jumps for traditional wheels
-      const scrollAmount = e.deltaY > 0 ? window.innerWidth * 0.8 : -window.innerWidth * 0.8;
-      gallery.scrollLeft += scrollAmount;
-    } else {
-      // Smooth scrolling for trackpads/magic mouse (like original)
-      if (Math.abs(e.deltaX) < Math.abs(e.deltaY)) {
-        gallery.scrollLeft += e.deltaY * 0.5;
-      } else {
-        gallery.scrollLeft += e.deltaX;
-      }
+    if (isTraditionalWheel && !isScrolling) {
+      e.preventDefault();
+      isScrolling = true;
+      
+      const scrollAmount = e.deltaY > 0 ? 
+        window.innerWidth * 0.8 : -window.innerWidth * 0.8;
+      
+      gallery.scrollBy({
+        left: scrollAmount,
+        behavior: 'smooth'
+      });
+      
+      setTimeout(() => { isScrolling = false; }, 300);
     }
+    // Let trackpads/magic mouse scroll naturally (don't prevent default)
   }, { passive: false });
 });
