@@ -1248,8 +1248,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // Only handle if it's clearly a vertical mouse wheel (big deltaY, no deltaX)
     if (Math.abs(e.deltaY) > 50 && Math.abs(e.deltaX) < 10) {
       e.preventDefault();
-      // Scroll like horizontal touchpad (1:1 direct)
-      gallery.scrollLeft += e.deltaY;
+      // Faster mouse wheel - multiply by 3 or 4
+      gallery.scrollLeft += e.deltaY * 3;
     }
     // Let everything else (touchpad horizontal/vertical) work exactly as original
   }, { passive: false });
