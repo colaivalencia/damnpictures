@@ -897,20 +897,44 @@ class ImageUploadManager {
     if (this.selectedPhotos.size === 0) return;
 
     const count = this.selectedPhotos.size;
-    if (!confirm(`Are you sure you want to delete ${count} photo${count > 1 ? 's' : ''}?`)) {
+    const confirmMessage = `Are you sure you want to delete ${count} photo${count > 1 ? 's' : ''}?\n\nThis action cannot be undone.`;
+    
+    if (!confirm(confirmMessage)) {
       return;
     }
 
+    // Disable controls during deletion
     const editToggleBtn = document.getElementById('editToggleBtn');
+    const deleteSelectedBtn = document.getElementById('deleteSelectedBtn');
+    const selectAllCheckbox = document.getElementById('selectAllPhotos');
+    const selectedCountSpan = document.getElementById('selectedCount');
     
-    if (editToggleBtn) {
-      editToggleBtn.disabled = true;
+    if (editToggleBtn) editToggleBtn.disabled = true;
+    if (deleteSelectedBtn) {
+      deleteSelectedBtn.disabled = true;
+      deleteSelectedBtn.textContent = 'Deleting...';
     }
+    if (selectAllCheckbox) selectAllCheckbox.disabled = true;
 
     const selectedPhotoIds = Array.from(this.selectedPhotos);
     const results = { successful: 0, failed: 0 };
+    const total = selectedPhotoIds.length;
 
-    for (const photoId of selectedPhotoIds) {
+    // Process deletions with progress updates
+    for (let i = 0; i < selectedPhotoIds.length; i++) {
+      const photoId = selectedPhotoIds[i];
+      const progress = i + 1;
+      
+      // Update progress in button text
+      if (deleteSelectedBtn) {
+        deleteSelectedBtn.textContent = `Deleting... (${progress}/${total})`;
+      }
+      
+      // Update progress in counter
+      if (selectedCountSpan) {
+        selectedCountSpan.textContent = `Deleting ${progress}/${total}...`;
+      }
+
       try {
         const checkbox = document.querySelector(`[data-photo-id="${photoId}"]`);
         const driveFileId = checkbox?.dataset.driveId;
@@ -918,19 +942,46 @@ class ImageUploadManager {
         const { error } = await supabaseHelpers.deletePhoto(photoId, driveFileId);
         
         if (error) {
+          console.error(`Failed to delete photo ${photoId}:`, error);
           results.failed++;
         } else {
           results.successful++;
+          
+          // Remove the photo item from UI immediately for better UX
+          const photoItem = checkbox?.closest('.photo-item');
+          if (photoItem) {
+            photoItem.style.opacity = '0.5';
+            photoItem.style.transform = 'scale(0.95)';
+          }
         }
       } catch (error) {
+        console.error(`Exception deleting photo ${photoId}:`, error);
         results.failed++;
+      }
+      
+      // Small delay to prevent overwhelming the server
+      if (i < selectedPhotoIds.length - 1) {
+        await new Promise(resolve => setTimeout(resolve, 100));
       }
     }
 
-    // Show results
-    if (results.failed > 0) {
-      alert(`Deleted ${results.successful} photos. ${results.failed} failed to delete.`);
+    // Show comprehensive results
+    let resultMessage = '';
+    if (results.successful > 0 && results.failed === 0) {
+      resultMessage = `Successfully deleted ${results.successful} photo${results.successful > 1 ? 's' : ''}!`;
+    } else if (results.successful > 0 && results.failed > 0) {
+      resultMessage = `Deleted ${results.successful} photo${results.successful > 1 ? 's' : ''}. ${results.failed} failed to delete.`;
+    } else if (results.failed > 0) {
+      resultMessage = `Failed to delete ${results.failed} photo${results.failed > 1 ? 's' : ''}. Please try again.`;
     }
+    
+    if (resultMessage) {
+      alert(resultMessage);
+    }
+
+    // Re-enable controls
+    if (editToggleBtn) editToggleBtn.disabled = false;
+    if (selectAllCheckbox) selectAllCheckbox.disabled = false;
 
     // Clear selection and reload photos
     this.selectedPhotos.clear();
