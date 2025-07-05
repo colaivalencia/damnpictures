@@ -676,6 +676,7 @@ body {
   gap: 16px;
 }
 
+/* === PHOTO ITEMS === */
 .photo-item {
   position: relative;
   aspect-ratio: 1;
@@ -687,10 +688,30 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
+/* Normal view mode hover */
 .photo-item:hover {
   transform: scale(1.05);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
   border-color: rgba(102, 126, 234, 0.3);
+}
+
+/* Edit mode styles */
+.photos-grid.edit-mode .photo-item:hover {
+  transform: scale(1.02);
+  box-shadow: 0 4px 16px rgba(102, 126, 234, 0.2);
+  border-color: rgba(102, 126, 234, 0.4);
+}
+
+/* Selected state in edit mode */
+.photo-item.selected {
+  transform: scale(0.95);
+  box-shadow: 0 0 0 3px #667eea, 0 8px 24px rgba(102, 126, 234, 0.4);
+  border-color: #667eea;
+}
+
+.photo-item.selected .photo-overlay {
+  opacity: 0.3;
+  background: rgba(102, 126, 234, 0.4);
 }
 
 .photo-item img {
@@ -718,6 +739,11 @@ body {
   opacity: 1;
 }
 
+/* Hide delete overlay in edit mode */
+.photos-grid.edit-mode .photo-overlay {
+  display: none;
+}
+
 .delete-btn {
   background: #ff4757;
   color: white;
@@ -739,6 +765,59 @@ body {
   transform: scale(1.1);
 }
 
+/* === SELECTION SYSTEM === */
+.photo-checkbox {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 10;
+  opacity: 0;
+  pointer-events: none;
+  transition: all 0.2s ease;
+}
+
+/* Show checkboxes in edit mode */
+.photos-grid.edit-mode .photo-checkbox {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Pretty circular checkbox for individual photos */
+.photo-checkbox input[type="checkbox"] {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(255, 255, 255, 0.8);
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  cursor: pointer;
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+.photo-checkbox input[type="checkbox"]:hover {
+  border-color: #667eea;
+  background: rgba(102, 126, 234, 0.2);
+  transform: scale(1.05);
+}
+
+.photo-checkbox input[type="checkbox"]:checked {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  border-color: #667eea;
+}
+
+.photo-checkbox input[type="checkbox"]:checked::after {
+  content: '✓';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: white;
+  font-size: 12px;
+  font-weight: bold;
+}
+
 /* === BULK SELECTION === */
 .bulk-actions {
   display: flex;
@@ -749,6 +828,18 @@ body {
   border-radius: 8px;
   margin-bottom: 16px;
   border: 1px solid rgba(255, 255, 255, 0.06);
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .bulk-actions label {
@@ -757,6 +848,8 @@ body {
   gap: 8px;
   cursor: pointer;
   user-select: none;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 14px;
 }
 
 /* Pretty circular checkbox for bulk select */
@@ -821,51 +914,6 @@ body {
   opacity: 0.5;
   cursor: not-allowed;
 }
-
-.photo-checkbox {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  z-index: 10;
-}
-
-/* Pretty circular checkbox for individual photos */
-.photo-checkbox input[type="checkbox"] {
-  appearance: none;
-  width: 20px;
-  height: 20px;
-  border: 2px solid rgba(255, 255, 255, 0.8);
-  border-radius: 50%;
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(4px);
-  cursor: pointer;
-  position: relative;
-  transition: all 0.2s ease;
-}
-
-.photo-checkbox input[type="checkbox"]:hover {
-  border-color: #667eea;
-  background: rgba(102, 126, 234, 0.2);
-  transform: scale(1.05);
-}
-
-.photo-checkbox input[type="checkbox"]:checked {
-  background: linear-gradient(135deg, #667eea, #764ba2);
-  border-color: #667eea;
-}
-
-.photo-checkbox input[type="checkbox"]:checked::after {
-  content: '✓';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  color: white;
-  font-size: 12px;
-  font-weight: bold;
-}
-
-
 
 /* === EMPTY STATES === */
 .empty-state {

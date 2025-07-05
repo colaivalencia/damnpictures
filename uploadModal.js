@@ -1086,3 +1086,22 @@ window.testPhotoLoad = async function() {
 };
 
 console.log('📸 Upload manager loaded. Test with: window.testPhotoLoad()');
+
+// Simple click-to-select for photos
+document.addEventListener('click', function(e) {
+  const photoItem = e.target.closest('.photo-item');
+  if (!photoItem) return;
+  
+  // Don't interfere with delete button
+  if (e.target.closest('.delete-btn')) return;
+  
+  // Find the checkbox
+  const checkbox = photoItem.querySelector('input[type="checkbox"]');
+  if (!checkbox) return;
+  
+  // Toggle the checkbox
+  checkbox.checked = !checkbox.checked;
+  
+  // Trigger the change event so existing bulk selection logic still works
+  checkbox.dispatchEvent(new Event('change', { bubbles: true }));
+});
