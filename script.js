@@ -1228,3 +1228,40 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Export for use in other modules
 window.modalStabilityManager = modalStabilityManager;
+
+// Enhanced scrolling - add to end of script.js
+document.addEventListener('DOMContentLoaded', () => {
+  const gallery = document.getElementById('gallery');
+  
+  // Arrow key navigation
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowLeft') {
+      e.preventDefault();
+      gallery.scrollLeft -= window.innerWidth * 0.8;
+    } else if (e.key === 'ArrowRight') {
+      e.preventDefault();
+      gallery.scrollLeft += window.innerWidth * 0.8;
+    }
+  });
+
+  // Enhanced mousewheel - detect traditional scroll wheels vs trackpads
+  gallery.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    
+    // Traditional scroll wheel detection
+    const isTraditionalWheel = Math.abs(e.deltaY) > 50 || e.deltaMode === 1;
+    
+    if (isTraditionalWheel) {
+      // Big scroll jumps for traditional wheels
+      const scrollAmount = e.deltaY > 0 ? window.innerWidth * 0.8 : -window.innerWidth * 0.8;
+      gallery.scrollLeft += scrollAmount;
+    } else {
+      // Smooth scrolling for trackpads/magic mouse (like original)
+      if (Math.abs(e.deltaX) < Math.abs(e.deltaY)) {
+        gallery.scrollLeft += e.deltaY * 0.5;
+      } else {
+        gallery.scrollLeft += e.deltaX;
+      }
+    }
+  }, { passive: false });
+});
